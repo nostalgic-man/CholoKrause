@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Cholo Krause: Electronic arts. - Carrito</title>
+    <title>Cholo Krause: Electronic arts. - Carrito de compras</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,7 +13,9 @@
         <a href="productos.html">Productos</a>
         <a href="armatupc.html">Arma tu PC</a>
     </nav>
-    <div class="buscador"><input type="text" id="globalSearch" placeholder="Buscar..."></div>
+    <div class="buscador">
+        <input type="text" id="globalSearch" placeholder="Buscar...">
+    </div>
     <div class="usuario">
         <a href="login.html">
             <svg class="user-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -30,9 +32,9 @@
         <div class="carrito-container">
             <div class="carrito-header">
                 <h1>Tu Carrito de Compras</h1>
-                <p>Revisa los productos seleccionados</p>
+                <p>Revisa los productos seleccionados y completa tu pedido</p>
             </div>
-            <div id="carritoContent"></div>
+            <div id="carritoContent" class="carrito-content"></div>
         </div>
     </div>
 </main>
@@ -54,7 +56,10 @@
 <script src="database.js"></script>
 <script>
     let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
+    let descuentoAplicado = 0;
+    let codigoCupon = '';
 
+    // Funciones auxiliares
     function guardarCarrito() {
         localStorage.setItem('carrito', JSON.stringify(carrito));
         renderizarCarrito();
@@ -62,11 +67,14 @@
 
     function actualizarCantidad(idx, nueva) {
         if (nueva < 1) eliminarProducto(idx);
-        else { carrito[idx].cantidad = Math.min(99, nueva); guardarCarrito(); }
+        else {
+            carrito[idx].cantidad = Math.min(99, nueva);
+            guardarCarrito();
+        }
     }
 
     function eliminarProducto(idx) {
-        if (confirm('¿Eliminar producto del carrito?')) {
+        if (confirm('¿Eliminar este producto del carrito?')) {
             carrito.splice(idx, 1);
             guardarCarrito();
         }
@@ -79,57 +87,267 @@
         }
     }
 
+    function calcularSubtotal() {
+        return carrito.reduce((total, item) => total + (item.precio * (item.cantidad || 1)), 0);
+    }
+
+    function calcularEnvio() {
+        const subtotal = calcularSubtotal();
+        if (subtotal === 0) return 0;
+        if (subtotal > 150000) return 0; // Envío gratis para compras mayores a $150,000
+        return 5000;
+    }
+
     function calcularTotal() {
-        return carrito.reduce((t, item) => t + (item.precio * (item.cantidad || 1)), 0);
+        const subtotal = calcularSubtotal();
+        const envio = calcularEnvio();
+        const descuentoValor = (subtotal * descuentoAplicado) / 100;
+        return subtotal + envio - descuentoValor;
+    }
+
+    function aplicarCupon() {
+        const cuponInput = document.getElementById('cuponInput');
+        const codigo = cuponInput.value.trim().toUpperCase();
+        if (codigo === 'BIENVENIDO10') {
+            descuentoAplicado = 10;
+            codigoCupon = codigo;
+            alert('Cupón aplicado: 10% de descuento');
+        } else if (codigo === 'KRAUSE5') {
+            descuentoAplicado = 5;
+            codigoCupon = codigo;
+            alert('Cupón aplicado: 5% de descuento');
+        } else if (codigo !== '') {
+            alert('Cupón no válido');
+            return;
+        }
+        if (codigo === '') {
+            descuentoAplicado = 0;
+            codigoCupon = '';
+            alert('Cupón eliminado');
+        }
+        renderizarCarrito();
+        cuponInput.value = '';
+    }
+
+    // Sugerencias de productos (basadas en productos del carrito)
+    function obtenerSugerencias() {
+        if (carrito.length === 0) return [];
+        // Obtener categorías de los productos en carrito
+        const categoriasEnCarrito = new Set();
+        carrito.forEach(item => {
+            for (let cat in productosDB) {
+                if (productosDB[cat].some(p => p.id === item.id)) {
+                    categoriasEnCarrito.add(cat);
+                    break;
+                }
+            }
+        });
+        // Sugerir productos de esas categorías que no estén en el carrito
+        const idsEnCarrito = new Set(carrito.map(item => item.id));
+        let sugerencias = [];
+        for (let cat of categoriasEnCarrito) {
+            const productosCat = productosDB[cat] || [];
+            sugerencias.push(...productosCat.filter(p => !idsEnCarrito.has(p.id)));
+        }
+        // Limitar a 4 productos únicos (eliminar duplicados por id)
+        sugerencias = sugerencias.filter((p, index, self) => self.findIndex(p2 => p2.id === p.id) === index);
+        return sugerencias.slice(0, 4);
+    }
+
+    function agregarAlCarrito(producto) {
+        const existente = carrito.find(item => item.id === producto.id);
+        if (existente) {
+            existente.cantidad = (existente.cantidad || 1) + 1;
+        } else {
+            carrito.push({ ...producto, cantidad: 1 });
+        }
+        guardarCarrito();
+        alert(`${producto.nombre} agregado al carrito`);
     }
 
     function finalizarCompra() {
-        if (carrito.length === 0) alert('El carrito está vacío');
-        else {
-            alert(`Compra realizada por $${calcularTotal().toLocaleString()}. Gracias.`);
-            carrito = [];
-            guardarCarrito();
+        if (carrito.length === 0) {
+            alert('Tu carrito está vacío. Agrega productos antes de finalizar.');
+            return;
         }
+        const total = calcularTotal();
+        alert(`¡Compra finalizada!\nTotal: $${total.toLocaleString()}\nGracias por tu compra. Te contactaremos para el envío.`);
+        carrito = [];
+        guardarCarrito();
+        // Opcional: redirigir a página de gracias
     }
 
     function renderizarCarrito() {
         const container = document.getElementById('carritoContent');
+        const subtotal = calcularSubtotal();
+        const envio = calcularEnvio();
+        const descuentoValor = (subtotal * descuentoAplicado) / 100;
+        const total = calcularTotal();
+
         if (carrito.length === 0) {
-            container.innerHTML = '<div class="carrito-vacio"><h3>Carrito vacío</h3><a href="productos.html" class="btn">Ir a productos</a></div>';
+            container.innerHTML = `
+                <div class="carrito-vacio">
+                    <div class="icono-carrito">🛒</div>
+                    <h3>Tu carrito está vacío</h3>
+                    <p>Parece que aún no has agregado productos. ¡Explora nuestro catálogo!</p>
+                    <a href="productos.html" class="btn">Explorar productos</a>
+                </div>
+                <div class="productos-sugeridos">
+                    <h4>Productos destacados</h4>
+                    <div class="sugerencias-grid" id="sugerenciasContainer"></div>
+                </div>
+            `;
+            // Mostrar sugerencias incluso con carrito vacío
+            mostrarSugerenciasGenericas();
             return;
         }
-        let html = `<table class="carrito-tabla"><thead><tr><th>Producto</th><th>Precio unitario</th><th>Cantidad</th><th>Subtotal</th><th></th></tr></thead><tbody>`;
-        carrito.forEach((item, i) => {
-            const cant = item.cantidad || 1;
-            const subtotal = item.precio * cant;
-            html += `<tr>
-                        <td data-label="Producto">${item.nombre}<br><small>${item.marca || ''}</small></td>
-                        <td data-label="Precio unitario">$${item.precio.toLocaleString()}</td>
-                        <td data-label="Cantidad"><button class="cantidad-btn" onclick="actualizarCantidad(${i}, ${cant-1})">-</button> ${cant} <button class="cantidad-btn" onclick="actualizarCantidad(${i}, ${cant+1})">+</button></td>
-                        <td data-label="Subtotal">$${subtotal.toLocaleString()}</td>
-                        <td data-label="Eliminar"><button onclick="eliminarProducto(${i})">Eliminar</button></td>
-                      </tr>`;
+
+        // Tabla de productos
+        let productosHtml = `
+            <div class="carrito-tabla-wrapper">
+                <table class="carrito-tabla">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Precio unitario</th>
+                            <th>Cantidad</th>
+                            <th>Subtotal</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        carrito.forEach((item, idx) => {
+            const cantidad = item.cantidad || 1;
+            const subtotalItem = item.precio * cantidad;
+            productosHtml += `
+                <tr>
+                    <td data-label="Producto">
+                        <div class="carrito-producto">
+                            <div class="carrito-producto-info">
+                                <h4>${item.nombre}</h4>
+                                <p>${item.marca || ''} ${item.socket ? `- ${item.socket}` : ''}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td data-label="Precio unitario">$${item.precio.toLocaleString()}</td>
+                    <td data-label="Cantidad">
+                        <div class="cantidad-control">
+                            <button class="cantidad-btn" onclick="actualizarCantidad(${idx}, ${cantidad - 1})">-</button>
+                            <span class="cantidad-num">${cantidad}</span>
+                            <button class="cantidad-btn" onclick="actualizarCantidad(${idx}, ${cantidad + 1})">+</button>
+                        </div>
+                    </td>
+                    <td data-label="Subtotal">$${subtotalItem.toLocaleString()}</td>
+                    <td data-label="Eliminar"><button class="btn-eliminar" onclick="eliminarProducto(${idx})">Eliminar</button></td>
+                </tr>
+            `;
         });
-        html += `</tbody></table><div class="carrito-resumen"><div>Total: $${calcularTotal().toLocaleString()} (IVA incluido)</div><div><button class="btn-vaciar" onclick="vaciarCarrito()">Vaciar carrito</button> <button class="btn-finalizar" onclick="finalizarCompra()">Finalizar compra</button></div></div>`;
-        container.innerHTML = html;
+        productosHtml += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        // Resumen del pedido
+        const resumenHtml = `
+            <div class="carrito-resumen">
+                <div class="resumen-detalle">
+                    <div class="resumen-fila"><span>Subtotal</span><span>$${subtotal.toLocaleString()}</span></div>
+                    <div class="resumen-fila"><span>Envío</span><span>${envio === 0 ? 'Gratis' : `$${envio.toLocaleString()}`}</span></div>
+                    ${descuentoAplicado > 0 ? `<div class="resumen-fila"><span>Descuento (${descuentoAplicado}%)</span><span> -$${descuentoValor.toLocaleString()}</span></div>` : ''}
+                    <div class="resumen-fila total"><span>Total</span><span>$${total.toLocaleString()}</span></div>
+                </div>
+                <div class="resumen-acciones">
+                    <div class="cupon-section">
+                        <input type="text" id="cuponInput" placeholder="Código de cupón" class="cupon-input">
+                        <button class="btn-cupon" onclick="aplicarCupon()">Aplicar</button>
+                    </div>
+                    <div class="botones-accion">
+                        <button class="btn-vaciar" onclick="vaciarCarrito()">Vaciar carrito</button>
+                        <button class="btn-finalizar" onclick="finalizarCompra()">Finalizar compra</button>
+                    </div>
+                    <a href="productos.html" class="seguir-comprando">Seguir comprando</a>
+                </div>
+            </div>
+        `;
+
+        // Sugerencias de productos relacionados
+        const sugerencias = obtenerSugerencias();
+        let sugerenciasHtml = '';
+        if (sugerencias.length > 0) {
+            sugerenciasHtml = `
+                <div class="productos-sugeridos">
+                    <h4>Quizás también te interese</h4>
+                    <div class="sugerencias-grid">
+                        ${sugerencias.map(p => `
+                            <div class="sugerencia-card" onclick="agregarAlCarrito(productosDB['${obtenerCategoriaPorId(p.id)}'].find(x=>x.id===${p.id}))">
+                                <img src="imagenes/${p.imagen}" alt="${p.nombre}" onerror="this.src='imagenes/placeholder.jpg'">
+                                <div class="sugerencia-info">
+                                    <h5>${p.nombre}</h5>
+                                    <p>$${p.precio.toLocaleString()}</p>
+                                    <button class="btn-agregar" onclick="event.stopPropagation(); agregarAlCarrito(productosDB['${obtenerCategoriaPorId(p.id)}'].find(x=>x.id===${p.id}))">Agregar</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        container.innerHTML = productosHtml + resumenHtml + sugerenciasHtml;
     }
 
+    function obtenerCategoriaPorId(id) {
+        for (let cat in productosDB) {
+            if (productosDB[cat].some(p => p.id === id)) return cat;
+        }
+        return 'procesadores';
+    }
+
+    function mostrarSugerenciasGenericas() {
+        const container = document.getElementById('sugerenciasContainer');
+        if (!container) return;
+        const productosDestacados = getAllProducts().slice(0, 4);
+        container.innerHTML = productosDestacados.map(p => `
+            <div class="sugerencia-card" onclick="agregarAlCarrito(productosDB['${obtenerCategoriaPorId(p.id)}'].find(x=>x.id===${p.id}))">
+                <img src="imagenes/${p.imagen}" alt="${p.nombre}" onerror="this.src='imagenes/placeholder.jpg'">
+                <div class="sugerencia-info">
+                    <h5>${p.nombre}</h5>
+                    <p>$${p.precio.toLocaleString()}</p>
+                    <button class="btn-agregar" onclick="event.stopPropagation(); agregarAlCarrito(productosDB['${obtenerCategoriaPorId(p.id)}'].find(x=>x.id===${p.id}))">Agregar</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Exponer funciones globales para los onclick
     window.actualizarCantidad = actualizarCantidad;
     window.eliminarProducto = eliminarProducto;
     window.vaciarCarrito = vaciarCarrito;
     window.finalizarCompra = finalizarCompra;
+    window.aplicarCupon = aplicarCupon;
+    window.agregarAlCarrito = agregarAlCarrito;
 
+    // Inicializar
     renderizarCarrito();
 
+    // Mostrar nombre de usuario si está logueado
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-    if (currentUser) document.getElementById('userNameDisplay').textContent = currentUser.name;
+    const userNameSpan = document.getElementById('userNameDisplay');
+    if (currentUser) userNameSpan.textContent = currentUser.name;
+
+    // Búsqueda global
     document.getElementById('globalSearch').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') window.location.href = `productos-lista.html?buscar=${encodeURIComponent(e.target.value)}`;
     });
-    const fb = document.querySelector('.floating-button'), fm = document.querySelector('.floating-menu');
-    if (fb && fm) {
-        fb.addEventListener('click', (e) => { e.stopPropagation(); fm.classList.toggle('show'); });
-        document.addEventListener('click', (e) => { if (!fb.contains(e.target) && !fm.contains(e.target)) fm.classList.remove('show'); });
+
+    // Botón flotante
+    const floatingButton = document.querySelector('.floating-button');
+    const floatingMenu = document.querySelector('.floating-menu');
+    if (floatingButton && floatingMenu) {
+        floatingButton.addEventListener('click', (e) => { e.stopPropagation(); floatingMenu.classList.toggle('show'); });
+        document.addEventListener('click', (e) => { if (!floatingButton.contains(e.target) && !floatingMenu.contains(e.target)) floatingMenu.classList.remove('show'); });
     }
 </script>
 </body>
