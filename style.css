@@ -177,7 +177,7 @@ nav a:hover::after {
 /* MAIN Y CONTENEDORES */
 /* ========================= */
 main {
-    padding-top: 130px; /* Espacio para header en móvil */
+    padding-top: 140px; /* Suficiente espacio para header en móvil (evita superposición) */
     min-height: 70vh;
 }
 
@@ -676,12 +676,12 @@ input:focus, select:focus, textarea:focus {
     padding: 20px;
     box-shadow: var(--shadow-sm);
     position: sticky;
-    top: 90px;
+    top: 100px; /* Ajustado para no quedar tapado por el header */
     flex: 0 0 280px;
     width: 280px;
     min-width: 280px;
     align-self: flex-start;
-    max-height: calc(100vh - 100px);
+    max-height: calc(100vh - 120px);
     overflow-y: auto;
 }
 
@@ -1170,107 +1170,13 @@ body.catalogo-fondo .main-container {
 }
 
 /* ========================= */
-/* MEDIA QUERIES PARA ESCRITORIO */
-/* ========================= */
-@media (min-width: 768px) {
-    main {
-        padding-top: 80px;
-    }
-    header {
-        padding: 12px 24px;
-        flex-wrap: nowrap;
-    }
-    nav {
-        order: 0;
-        width: auto;
-        margin-top: 0;
-        gap: 1.2rem;
-    }
-    nav a {
-        font-size: 1rem;
-    }
-    .buscador {
-        margin: 0 16px;
-    }
-    .buscador input {
-        width: 200px;
-    }
-    .buscador input:focus {
-        width: 250px;
-    }
-    .user-name {
-        font-size: 0.7rem;
-        max-width: 100px;
-    }
-    .logo {
-        font-size: 1.4rem;
-    }
-    .banner {
-        height: 450px;
-    }
-    .banner h1 {
-        font-size: 3rem;
-    }
-    .products-grid {
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-        gap: 1.5rem;
-    }
-    .product-image {
-        height: 200px;
-    }
-    .product-title {
-        font-size: 1.1rem;
-    }
-    .product-price {
-        font-size: 1.3rem;
-    }
-    .product-detail {
-        grid-template-columns: 1fr 1fr;
-        padding: 2rem;
-    }
-    .product-detail-image {
-        height: 400px;
-    }
-    .product-detail-title {
-        font-size: 1.8rem;
-    }
-    .product-detail-price {
-        font-size: 2rem;
-    }
-    .specs-grid {
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    }
-    .spec-item {
-        flex-direction: row;
-    }
-    .spec-value {
-        text-align: right;
-    }
-}
-
-@media (min-width: 992px) {
-    .products-list-container {
-        flex-wrap: nowrap;
-    }
-    .filters-sidebar {
-        position: sticky;
-    }
-}
-/* ========================= */
-/* ESTILOS ADICIONALES PARA EL CARRITO */
+/* ESTILOS ADICIONALES PARA EL CARRITO (mejorado) */
 /* ========================= */
 .carrito-container {
     background: white;
     border-radius: var(--border-radius-xl);
     overflow: hidden;
     box-shadow: var(--shadow-md);
-}
-
-.carrito-header {
-    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
-    padding: 24px;
-    text-align: center;
-    color: white;
 }
 
 .carrito-vacio {
@@ -1472,30 +1378,119 @@ body.catalogo-fondo .main-container {
     font-size: 0.8rem;
 }
 
-@media (max-width: 768px) {
-    .carrito-tabla thead {
-        display: none;
+/* ========================= */
+/* MEDIA QUERIES PARA ESCRITORIO */
+/* ========================= */
+@media (min-width: 768px) {
+    main {
+        padding-top: 80px; /* Menor padding en escritorio, el header es más pequeño */
     }
-    .carrito-tabla tr {
-        display: block;
-        margin-bottom: 1rem;
-        border: 1px solid var(--color-gray);
-        border-radius: var(--border-radius-md);
-        padding: 0.8rem;
+    header {
+        padding: 12px 24px;
+        flex-wrap: nowrap;
     }
-    .carrito-tabla td {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.5rem 0;
-        border-bottom: none;
+    nav {
+        order: 0;
+        width: auto;
+        margin-top: 0;
+        gap: 1.2rem;
     }
-    .carrito-tabla td::before {
-        content: attr(data-label);
-        font-weight: bold;
-        color: var(--color-primary);
+    nav a {
+        font-size: 1rem;
     }
-    .carrito-resumen {
-        flex-direction: column;
+    .buscador {
+        margin: 0 16px;
+    }
+    .buscador input {
+        width: 200px;
+    }
+    .buscador input:focus {
+        width: 250px;
+    }
+    .user-name {
+        font-size: 0.7rem;
+        max-width: 100px;
+    }
+    .logo {
+        font-size: 1.4rem;
+    }
+    .banner {
+        height: 450px;
+    }
+    .banner h1 {
+        font-size: 3rem;
+    }
+    .products-grid {
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 1.5rem;
+    }
+    .product-image {
+        height: 200px;
+    }
+    .product-title {
+        font-size: 1.1rem;
+    }
+    .product-price {
+        font-size: 1.3rem;
+    }
+    .product-detail {
+        grid-template-columns: 1fr 1fr;
+        padding: 2rem;
+    }
+    .product-detail-image {
+        height: 400px;
+    }
+    .product-detail-title {
+        font-size: 1.8rem;
+    }
+    .product-detail-price {
+        font-size: 2rem;
+    }
+    .specs-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    }
+    .spec-item {
+        flex-direction: row;
+    }
+    .spec-value {
+        text-align: right;
+    }
+}
+
+@media (min-width: 992px) {
+    .products-list-container {
+        flex-wrap: nowrap;
+    }
+    .filters-sidebar {
+        position: sticky;
+        top: 90px; /* En escritorio, el header es más bajo */
+    }
+}
+
+/* ========================= */
+/* RESPONSIVE PARA MÓVIL (adicional) */
+/* ========================= */
+@media (max-width: 480px) {
+    main {
+        padding-top: 150px; /* Aún más espacio si el header es muy alto */
+    }
+    .logo {
+        font-size: 1rem;
+    }
+    nav a {
+        font-size: 0.8rem;
+    }
+    .banner {
+        height: 150px;
+    }
+    .banner h1 {
+        font-size: 1.4rem;
+    }
+    .product-card .product-image {
+        height: 140px;
+    }
+    .btn, .add-to-cart, .btn-favorito {
+        padding: 8px 12px;
+        font-size: 0.8rem;
     }
 }
