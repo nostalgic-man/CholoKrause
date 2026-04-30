@@ -1,0 +1,128 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cholo Krause: Electronic arts. - Favoritos</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <div class="logo">Cholo Krause: Electronic arts.</div>
+    <nav>
+        <a href="index.html">Inicio</a>
+        <a href="productos.html">Productos</a>
+        <a href="armatupc.html">Arma tu PC</a>
+    </nav>
+    <div class="buscador">
+        <input type="text" id="globalSearch" placeholder="Buscar...">
+    </div>
+    <div class="usuario">
+        <a href="login.html">
+            <svg class="user-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="8" r="4" stroke="white" stroke-width="1.5"/>
+                <path d="M5 20v-2a7 7 0 0 1 14 0v2" stroke="white" stroke-width="1.5"/>
+            </svg>
+        </a>
+        <span class="user-name" id="userNameDisplay"></span>
+    </div>
+</header>
+
+<main>
+    <div class="main-container">
+        <div class="favoritos-container">
+            <div class="favoritos-header">
+                <h1>Mis Productos Favoritos</h1>
+                <p>Guarda tus productos preferidos para comprarlos después</p>
+            </div>
+            <div id="favoritosContent"></div>
+        </div>
+    </div>
+</main>
+
+<footer>
+    <p>Cholo Krause: Electronic arts.</p>
+</footer>
+
+<div class="floating-menu-container">
+    <button class="floating-button">☰</button>
+    <div class="floating-menu">
+        <a href="carrito.html">Carrito</a>
+        <a href="favoritos.html">Favoritos</a>
+        <a href="preguntasfrecuentes.html">FAQ</a>
+        <a href="contacto.html">Contacto</a>
+    </div>
+</div>
+
+<script src="database.js"></script>
+<script>
+    let favoritos = JSON.parse(localStorage.getItem('favoritos')) || [];
+
+    function guardarFavoritos() {
+        localStorage.setItem('favoritos', JSON.stringify(favoritos));
+        renderizarFavoritos();
+    }
+
+    function quitarDeFavoritos(index) {
+        if (confirm('¿Quitar de favoritos?')) {
+            favoritos.splice(index, 1);
+            guardarFavoritos();
+        }
+    }
+
+    function agregarAlCarrito(producto) {
+        let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
+        const existente = carrito.find(i => i.id === producto.id);
+        if (existente) existente.cantidad = (existente.cantidad || 1) + 1;
+        else carrito.push({ ...producto, cantidad: 1 });
+        localStorage.setItem('carrito', JSON.stringify(carrito));
+        alert(`${producto.nombre} agregado al carrito`);
+    }
+
+    function renderizarFavoritos() {
+        const container = document.getElementById('favoritosContent');
+        if (favoritos.length === 0) {
+            container.innerHTML = `<div class="favoritos-vacio"><h3>No tienes productos favoritos</h3><a href="productos.html" class="btn">Explorar productos</a></div>`;
+            return;
+        }
+        let html = `<div class="favoritos-grid">`;
+        favoritos.forEach((item, index) => {
+            html += `
+                <div class="favorito-card">
+                    <div class="product-image"><img src="imagenes/${item.imagen}" alt="${item.nombre}"></div>
+                    <div class="product-info">
+                        <div class="product-title">${item.nombre}</div>
+                        <div class="product-category">${item.marca}</div>
+                        <div class="product-price">$${item.precio.toLocaleString()}</div>
+                        <div class="product-description">${item.descripcion}</div>
+                    </div>
+                    <div class="favorito-acciones" style="display:flex; gap:8px; padding:1rem;">
+                        <button class="btn-agregar-carrito" onclick="agregarAlCarrito(favoritos[${index}])">Agregar al carrito</button>
+                        <button class="btn-quitar-favorito" onclick="quitarDeFavoritos(${index})">Quitar</button>
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+        container.innerHTML = html;
+    }
+
+    window.agregarAlCarrito = agregarAlCarrito;
+    window.quitarDeFavoritos = quitarDeFavoritos;
+    renderizarFavoritos();
+
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    if (currentUser) document.getElementById('userNameDisplay').textContent = currentUser.name;
+
+    document.getElementById('globalSearch').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') window.location.href = `productos-lista.html?buscar=${encodeURIComponent(e.target.value)}`;
+    });
+
+    const floatingButton = document.querySelector('.floating-button');
+    const floatingMenu = document.querySelector('.floating-menu');
+    if (floatingButton && floatingMenu) {
+        floatingButton.addEventListener('click', (e) => { e.stopPropagation(); floatingMenu.classList.toggle('show'); });
+        document.addEventListener('click', (e) => { if (!floatingButton.contains(e.target) && !floatingMenu.contains(e.target)) floatingMenu.classList.remove('show'); });
+    }
+</script>
+</body>
+</html>

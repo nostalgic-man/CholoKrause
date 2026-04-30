@@ -1,0 +1,83 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cholo Krause: Electronic arts. - Contacto</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <div class="logo">Cholo Krause: Electronic arts.</div>
+    <nav>
+        <a href="index.html">Inicio</a>
+        <a href="productos.html">Productos</a>
+        <a href="armatupc.html">Arma tu PC</a>
+    </nav>
+    <div class="buscador">
+        <input type="text" id="globalSearch" placeholder="Buscar...">
+    </div>
+    <div class="usuario">
+        <a href="login.html">
+            <svg class="user-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="8" r="4" stroke="white" stroke-width="1.5"/>
+                <path d="M5 20v-2a7 7 0 0 1 14 0v2" stroke="white" stroke-width="1.5"/>
+            </svg>
+        </a>
+        <span class="user-name" id="userNameDisplay"></span>
+    </div>
+</header>
+
+<main>
+    <div class="main-container">
+        <h1>Contacto</h1>
+        <div class="info">
+            <p>Email: contacto@cholokrause.com</p>
+            <p>Teléfono: (011) 1234-5678</p>
+            <p>Dirección: Av. Principal 123, Buenos Aires, Argentina</p>
+            <p>Horario: Lunes a Viernes de 9:00 a 18:00</p>
+            <br>
+            <p>¿Tienes alguna consulta? Completa el siguiente formulario:</p>
+            <form action="#" method="post">
+                <label for="nombre">Nombre:</label><br>
+                <input type="text" id="nombre" name="nombre" required><br><br>
+                <label for="email">Email:</label><br>
+                <input type="email" id="email" name="email" required><br><br>
+                <label for="mensaje">Mensaje:</label><br>
+                <textarea id="mensaje" name="mensaje" rows="4" cols="40" required></textarea><br><br>
+                <input type="submit" value="Enviar consulta">
+            </form>
+        </div>
+    </div>
+</main>
+
+<footer>
+    <p>Cholo Krause: Electronic arts.</p>
+</footer>
+
+<div class="floating-menu-container">
+    <button class="floating-button">☰</button>
+    <div class="floating-menu">
+        <a href="carrito.html">Carrito</a>
+        <a href="favoritos.html">Favoritos</a>
+        <a href="preguntasfrecuentes.html">FAQ</a>
+        <a href="contacto.html">Contacto</a>
+    </div>
+</div>
+
+<script>
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    if (currentUser) document.getElementById('userNameDisplay').textContent = currentUser.name;
+
+    document.getElementById('globalSearch').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') window.location.href = `productos-lista.html?buscar=${encodeURIComponent(e.target.value)}`;
+    });
+
+    const floatingButton = document.querySelector('.floating-button');
+    const floatingMenu = document.querySelector('.floating-menu');
+    if (floatingButton && floatingMenu) {
+        floatingButton.addEventListener('click', (e) => { e.stopPropagation(); floatingMenu.classList.toggle('show'); });
+        document.addEventListener('click', (e) => { if (!floatingButton.contains(e.target) && !floatingMenu.contains(e.target)) floatingMenu.classList.remove('show'); });
+    }
+</script>
+</body>
+</html>

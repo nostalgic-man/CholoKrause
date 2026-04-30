@@ -1,0 +1,160 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cholo Krause: Electronic arts. - Detalle de producto</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <div class="logo">Cholo Krause: Electronic arts.</div>
+    <nav>
+        <a href="index.html">Inicio</a>
+        <a href="productos.html">Productos</a>
+        <a href="armatupc.html">Arma tu PC</a>
+    </nav>
+    <div class="buscador">
+        <input type="text" id="globalSearch" placeholder="Buscar...">
+    </div>
+    <div class="usuario">
+        <a href="login.html">
+            <svg class="user-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="8" r="4" stroke="white" stroke-width="1.5"/>
+                <path d="M5 20v-2a7 7 0 0 1 14 0v2" stroke="white" stroke-width="1.5"/>
+            </svg>
+        </a>
+        <span class="user-name" id="userNameDisplay"></span>
+    </div>
+</header>
+
+<main>
+    <div class="main-container">
+        <div class="breadcrumb">
+            <a href="index.html">Inicio</a> > <a href="productos.html">Productos</a> > <span id="productNameSpan"></span>
+        </div>
+        <div id="detailContainer"></div>
+    </div>
+</main>
+
+<footer>
+    <p>Cholo Krause: Electronic arts.</p>
+</footer>
+
+<div class="floating-menu-container">
+    <button class="floating-button">☰</button>
+    <div class="floating-menu">
+        <a href="carrito.html">Carrito</a>
+        <a href="favoritos.html">Favoritos</a>
+        <a href="preguntasfrecuentes.html">FAQ</a>
+        <a href="contacto.html">Contacto</a>
+    </div>
+</div>
+
+<script src="database.js"></script>
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const productId = parseInt(urlParams.get('id'));
+    const producto = getProductById(productId);
+
+    if (!producto) {
+        document.getElementById('detailContainer').innerHTML = '<div style="padding:60px;text-align:center">Producto no encontrado</div>';
+    } else {
+        document.getElementById('productNameSpan').innerText = producto.nombre;
+
+        // Generar especificaciones en base a las propiedades del producto
+        let specsHtml = '<ul>';
+        for (let [key, value] of Object.entries(producto)) {
+            if (['id', 'nombre', 'precio', 'marca', 'descripcion', 'imagen'].includes(key)) continue;
+            if (value === undefined || value === null) continue;
+            if (typeof value === 'boolean') value = value ? 'Si' : 'No';
+            if (Array.isArray(value)) value = value.join(', ');
+            specsHtml += `<li><strong>${key}:</strong> ${value}</li>`;
+        }
+        specsHtml += '</ul>';
+
+        const html = `
+            <div class="detail-container">
+                <div class="product-gallery">
+                    <div class="main-image"><img src="imagenes/${producto.imagen}" alt="${producto.nombre}" style="max-width:100%; border-radius:20px;"></div>
+                </div>
+                <div class="product-info-detail">
+                    <h1>${producto.nombre}</h1>
+                    <div class="product-brand">${producto.marca}</div>
+                    <div class="product-price-detail">$${producto.precio.toLocaleString()} <small>IVA incluido</small></div>
+                    <div class="quantity-selector">
+                        <label>Cantidad:</label>
+                        <div class="quantity-control">
+                            <button class="quantity-btn" onclick="cambiarCantidad(-1)">-</button>
+                            <input type="number" id="cantidad" value="1" min="1" max="10">
+                            <button class="quantity-btn" onclick="cambiarCantidad(1)">+</button>
+                        </div>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="btn-buy" onclick="comprarAhora()">Comprar ahora</button>
+                        <button class="btn-cart" onclick="agregarAlCarrito()">Agregar al carrito</button>
+                        <button class="btn-favorite" onclick="agregarAFavoritos()">Favorito</button>
+                    </div>
+                </div>
+                <div class="specs-table">
+                    <h3>Especificaciones técnicas</h3>
+                    <div>${producto.descripcion}</div>
+                    ${specsHtml}
+                </div>
+            </div>
+        `;
+        document.getElementById('detailContainer').innerHTML = html;
+    }
+
+    function cambiarCantidad(delta) {
+        const input = document.getElementById('cantidad');
+        let val = parseInt(input.value);
+        val = Math.min(10, Math.max(1, val + delta));
+        input.value = val;
+    }
+
+    function agregarAlCarrito() {
+        const cantidad = parseInt(document.getElementById('cantidad').value);
+        let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
+        const existente = carrito.find(i => i.id === producto.id);
+        if (existente) existente.cantidad = (existente.cantidad || 1) + cantidad;
+        else carrito.push({ ...producto, cantidad: cantidad });
+        localStorage.setItem('carrito', JSON.stringify(carrito));
+        alert(`${producto.nombre} agregado al carrito`);
+    }
+
+    function comprarAhora() {
+        agregarAlCarrito();
+        window.location.href = 'carrito.html';
+    }
+
+    function agregarAFavoritos() {
+        let favoritos = JSON.parse(localStorage.getItem('favoritos')) || [];
+        if (!favoritos.find(f => f.id === producto.id)) {
+            favoritos.push(producto);
+            localStorage.setItem('favoritos', JSON.stringify(favoritos));
+            alert(`${producto.nombre} agregado a favoritos`);
+        } else alert('Ya está en favoritos');
+    }
+
+    window.cambiarCantidad = cambiarCantidad;
+    window.agregarAlCarrito = agregarAlCarrito;
+    window.comprarAhora = comprarAhora;
+    window.agregarAFavoritos = agregarAFavoritos;
+
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    if (currentUser) document.getElementById('userNameDisplay').textContent = currentUser.name;
+
+    // Búsqueda global
+    document.getElementById('globalSearch').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') window.location.href = `productos-lista.html?buscar=${encodeURIComponent(e.target.value)}`;
+    });
+
+    const floatingButton = document.querySelector('.floating-button');
+    const floatingMenu = document.querySelector('.floating-menu');
+    if (floatingButton && floatingMenu) {
+        floatingButton.addEventListener('click', (e) => { e.stopPropagation(); floatingMenu.classList.toggle('show'); });
+        document.addEventListener('click', (e) => { if (!floatingButton.contains(e.target) && !floatingMenu.contains(e.target)) floatingMenu.classList.remove('show'); });
+    }
+</script>
+</body>
+</html>

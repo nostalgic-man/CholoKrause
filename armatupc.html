@@ -1,0 +1,401 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cholo Krause: Electronic arts. - Arma tu PC</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <div class="logo">Cholo Krause: Electronic arts.</div>
+    <nav>
+        <a href="index.html">Inicio</a>
+        <a href="productos.html">Productos</a>
+        <a href="armatupc.html">Arma tu PC</a>
+    </nav>
+    <div class="buscador">
+        <input type="text" id="globalSearch" placeholder="Buscar...">
+    </div>
+    <div class="usuario">
+        <a href="login.html">
+            <svg class="user-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="8" r="4" stroke="white" stroke-width="1.5"/>
+                <path d="M5 20v-2a7 7 0 0 1 14 0v2" stroke="white" stroke-width="1.5"/>
+            </svg>
+        </a>
+        <span class="user-name" id="userNameDisplay"></span>
+    </div>
+</header>
+
+<main>
+    <div class="main-container">
+        <h1>Arma tu PC ideal</h1>
+        <div class="configurador-container">
+            <div class="componentes-panel">
+                <div class="componentes-header">
+                    <h2>Selecciona componentes</h2>
+                    <button class="btn-reset" id="resetAllBtn">Reiniciar todo</button>
+                </div>
+                <div id="componentesLista"></div>
+            </div>
+            <div class="resumen-panel">
+                <div class="resumen-header">
+                    <h2>Tu nueva PC</h2>
+                </div>
+                <div class="resumen-total">
+                    <span>Total:</span>
+                    <span id="totalPrecio">$0</span>
+                </div>
+                <div id="resumenLista" class="resumen-lista"></div>
+                <div class="resumen-acciones">
+                    <button id="resetBtn" class="btn-reset">Reiniciar</button>
+                    <button id="configurarBtn" class="btn-configurar">Configurar y guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer>
+    <p>Cholo Krause: Electronic arts.</p>
+</footer>
+
+<div class="floating-menu-container">
+    <button class="floating-button">☰</button>
+    <div class="floating-menu">
+        <a href="carrito.html">Carrito</a>
+        <a href="favoritos.html">Favoritos</a>
+        <a href="preguntasfrecuentes.html">FAQ</a>
+        <a href="contacto.html">Contacto</a>
+    </div>
+</div>
+
+<script src="database.js"></script>
+<script>
+    // Mapeo de categorías UI a base de datos
+    const categoriasUI = [
+        "microprocesador", "mother", "placas_video", "coolers", "gabinetes", "monitores", "perifericos", "fuentes_poder"
+    ];
+    const nombresMostrar = {
+        microprocesador: "Procesador",
+        mother: "Motherboard",
+        placas_video: "Placa de video",
+        coolers: "Cooler",
+        gabinetes: "Gabinete",
+        monitores: "Monitor",
+        perifericos: "Periféricos",
+        fuentes_poder: "Fuente de poder"
+    };
+    const dbMap = {
+        microprocesador: "procesadores",
+        mother: "motherboards",
+        placas_video: "placas_video",
+        coolers: "coolers",
+        gabinetes: "gabinetes",
+        monitores: "monitores",
+        perifericos: "perifericos",
+        fuentes_poder: "fuentes_poder"
+    };
+
+    let selecciones = {};
+    let seleccionRAM = { cantidad: 1, producto: null };
+
+    function initSelecciones() {
+        categoriasUI.forEach(cat => { selecciones[cat] = null; });
+        seleccionRAM = { cantidad: 1, producto: null };
+    }
+    initSelecciones();
+
+    function calcularConsumoTotal() {
+        let total = 50;
+        if (selecciones.microprocesador) total += selecciones.microprocesador.tdp || 65;
+        if (selecciones.placas_video) total += selecciones.placas_video.consumo || 0;
+        if (selecciones.coolers) total += 10;
+        return total;
+    }
+
+    function getOpcionesCompatibles(categoriaUID) {
+        const dbCat = dbMap[categoriaUID];
+        if (!dbCat) return [];
+        let opciones = [...(productosDB[dbCat] || [])];
+        const cpu = selecciones.microprocesador;
+        const mother = selecciones.mother;
+        
+        if (categoriaUID === "mother" && cpu) {
+            opciones = opciones.filter(mb => mb.socket === cpu.socket);
+        }
+        if (categoriaUID === "microprocesador" && mother) {
+            opciones = opciones.filter(cpu2 => cpu2.socket === mother.socket);
+        }
+        if (categoriaUID === "fuentes_poder") {
+            const consumo = calcularConsumoTotal();
+            if (consumo > 0) {
+                opciones = opciones.filter(psu => psu.potencia >= consumo);
+            }
+        }
+        if (categoriaUID === "coolers" && cpu) {
+            opciones = opciones.filter(cooler => cooler.socket_compatible?.includes(cpu.socket));
+        }
+        return opciones;
+    }
+
+    function getOpcionesRAMCompatibles() {
+        let opciones = [...(productosDB.memorias_ram || [])];
+        const mother = selecciones.mother;
+        if (mother && mother.tipo_ram) {
+            opciones = opciones.filter(ram => ram.tipo === mother.tipo_ram);
+        }
+        return opciones;
+    }
+
+    function renderizarComponentes() {
+        const container = document.getElementById('componentesLista');
+        let html = '';
+        html += generarCategoriaHTML("microprocesador", "Microprocesador", getOpcionesCompatibles("microprocesador"));
+        html += generarCategoriaHTML("mother", "Motherboard", getOpcionesCompatibles("mother"));
+        html += generarCategoriaHTML("placas_video", "Placa de Video", getOpcionesCompatibles("placas_video"));
+        html += generarCategoriaHTML("coolers", "Cooler", getOpcionesCompatibles("coolers"));
+        html += generarCategoriaHTML("gabinetes", "Gabinete", productosDB.gabinetes);
+        html += generarCategoriaHTML("monitores", "Monitor", productosDB.monitores);
+        html += generarCategoriaHTML("perifericos", "Periféricos", productosDB.perifericos);
+        html += generarCategoriaHTML("fuentes_poder", "Fuente de Poder", getOpcionesCompatibles("fuentes_poder"));
+        html += generarCategoriaRAM();
+        container.innerHTML = html;
+    }
+
+    function generarCategoriaHTML(catKey, nombre, opciones) {
+        const seleccionado = selecciones[catKey];
+        const tieneSeleccion = seleccionado ? `✅ ${seleccionado.nombre}` : "Sin elegir";
+        const precioSeleccion = seleccionado ? `$${seleccionado.precio.toLocaleString()}` : "";
+        let opcionesHTML = "";
+        opciones.forEach(op => {
+            const isSelected = seleccionado && seleccionado.id === op.id;
+            opcionesHTML += `<div class="opcion-card ${isSelected ? 'seleccionada' : ''}" onclick="seleccionar('${catKey}', ${op.id})">
+                                <strong>${op.nombre}</strong><br>
+                                <small>$${op.precio.toLocaleString()}</small>
+                            </div>`;
+        });
+        return `
+            <div class="componente-item">
+                <div class="componente-header" onclick="toggle('${catKey}')">
+                    <span class="componente-nombre">${nombre}</span>
+                    <span>${tieneSeleccion}</span>
+                    <span>${precioSeleccion}</span>
+                    <span id="icono-${catKey}">▼</span>
+                </div>
+                <div class="componente-contenido" id="contenido-${catKey}">
+                    <div class="opciones-grid">${opcionesHTML}</div>
+                    <button class="btn-saltar" onclick="saltar('${catKey}')">Omitir</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function generarCategoriaRAM() {
+        const opcionesRAM = getOpcionesRAMCompatibles();
+        const seleccionado = seleccionRAM.producto;
+        const tieneSeleccion = seleccionado ? `✅ ${seleccionado.nombre} x${seleccionRAM.cantidad}` : "Sin elegir";
+        const precioTotal = seleccionado ? (seleccionado.precio * seleccionRAM.cantidad).toLocaleString() : "";
+        let opcionesHTML = "";
+        opcionesRAM.forEach(ram => {
+            const isSelected = seleccionado && seleccionado.id === ram.id;
+            opcionesHTML += `<div class="opcion-card ${isSelected ? 'seleccionada' : ''}" onclick="seleccionarRAM(${ram.id})">
+                                <strong>${ram.nombre}</strong><br>
+                                <small>$${ram.precio.toLocaleString()} c/u</small>
+                            </div>`;
+        });
+        if (opcionesRAM.length === 0) {
+            opcionesHTML = '<div style="padding: 10px; color: #999;">No hay memorias RAM compatibles con la motherboard seleccionada.</div>';
+        }
+        return `
+            <div class="componente-item">
+                <div class="componente-header" onclick="toggle('ram')">
+                    <span class="componente-nombre">Memoria RAM</span>
+                    <span>${tieneSeleccion}</span>
+                    <span>${precioTotal}</span>
+                    <span id="icono-ram">▼</span>
+                </div>
+                <div class="componente-contenido" id="contenido-ram">
+                    <div class="opciones-grid">${opcionesHTML}</div>
+                    <div style="margin: 10px 0;">Cantidad de módulos: 
+                        <input type="number" id="cantidadRAM" min="1" max="4" value="${seleccionRAM.cantidad}" onchange="cambiarCantidadRAM(this.value)">
+                    </div>
+                    <button class="btn-saltar" onclick="saltarRAM()">Omitir RAM</button>
+                </div>
+            </div>
+        `;
+    }
+
+    window.toggle = function(id) {
+        const contenido = document.getElementById(`contenido-${id}`);
+        const icono = document.getElementById(`icono-${id}`);
+        if (contenido.classList.contains('active')) {
+            contenido.classList.remove('active');
+            icono.classList.remove('rotado');
+        } else {
+            document.querySelectorAll('.componente-contenido').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.componente-icono').forEach(i => i.classList.remove('rotado'));
+            contenido.classList.add('active');
+            icono.classList.add('rotado');
+        }
+    };
+
+    window.seleccionar = function(catKey, id) {
+        const dbCat = dbMap[catKey];
+        const producto = productosDB[dbCat]?.find(p => p.id === id);
+        if (producto) {
+            selecciones[catKey] = producto;
+            if (catKey === "mother") {
+                if (seleccionRAM.producto) {
+                    const compatible = getOpcionesRAMCompatibles().some(ram => ram.id === seleccionRAM.producto.id);
+                    if (!compatible) seleccionRAM.producto = null;
+                }
+            }
+            renderizarComponentes();
+            actualizarResumen();
+        }
+    };
+
+    window.saltar = function(catKey) {
+        selecciones[catKey] = null;
+        if (catKey === "mother") {
+            seleccionRAM.producto = null;
+        }
+        renderizarComponentes();
+        actualizarResumen();
+    };
+
+    window.seleccionarRAM = function(id) {
+        const opcionesCompatibles = getOpcionesRAMCompatibles();
+        const producto = opcionesCompatibles.find(p => p.id === id);
+        if (producto) {
+            seleccionRAM.producto = producto;
+            renderizarComponentes();
+            actualizarResumen();
+        } else {
+            alert("Esta memoria no es compatible con la motherboard seleccionada.");
+        }
+    };
+
+    window.saltarRAM = function() {
+        seleccionRAM.producto = null;
+        renderizarComponentes();
+        actualizarResumen();
+    };
+
+    window.cambiarCantidadRAM = function(val) {
+        seleccionRAM.cantidad = parseInt(val) || 1;
+        renderizarComponentes();
+        actualizarResumen();
+    };
+
+    // Función para eliminar un ítem del resumen (categoría o RAM)
+    window.eliminarItemResumen = function(tipo, id) {
+        if (tipo === 'categoria') {
+            // Buscar la clave de categoría por el ID del producto (simple: recorremos selecciones)
+            for (let cat of categoriasUI) {
+                if (selecciones[cat] && selecciones[cat].id === id) {
+                    selecciones[cat] = null;
+                    break;
+                }
+            }
+            // Si la categoría eliminada es motherboard, también limpiar RAM
+            for (let cat of categoriasUI) {
+                if (selecciones[cat] && selecciones[cat].id === id && cat === 'mother') {
+                    seleccionRAM.producto = null;
+                    break;
+                }
+            }
+        } else if (tipo === 'ram') {
+            seleccionRAM.producto = null;
+        }
+        renderizarComponentes();
+        actualizarResumen();
+    };
+
+    function calcularTotal() {
+        let total = 0;
+        for (let cat of categoriasUI) {
+            if (selecciones[cat]) total += selecciones[cat].precio;
+        }
+        if (seleccionRAM.producto) total += seleccionRAM.producto.precio * seleccionRAM.cantidad;
+        return total;
+    }
+
+    function actualizarResumen() {
+        const resumenDiv = document.getElementById('resumenLista');
+        let html = '';
+        // Mostrar cada componente seleccionado (categorías)
+        for (let cat of categoriasUI) {
+            if (selecciones[cat]) {
+                const item = selecciones[cat];
+                html += `
+                    <div class="resumen-item">
+                        <span class="resumen-nombre">${nombresMostrar[cat]}: ${item.nombre}</span>
+                        <span class="resumen-precio">$${item.precio.toLocaleString()}</span>
+                        <button class="resumen-borrar" onclick="eliminarItemResumen('categoria', ${item.id})">✕</button>
+                    </div>
+                `;
+            }
+        }
+        // Mostrar RAM si está seleccionada
+        if (seleccionRAM.producto) {
+            const ram = seleccionRAM.producto;
+            const subtotal = ram.precio * seleccionRAM.cantidad;
+            html += `
+                <div class="resumen-item">
+                    <span class="resumen-nombre">RAM: ${ram.nombre} x${seleccionRAM.cantidad}</span>
+                    <span class="resumen-precio">$${subtotal.toLocaleString()}</span>
+                    <button class="resumen-borrar" onclick="eliminarItemResumen('ram')">✕</button>
+                </div>
+            `;
+        }
+        if (html === '') {
+            html = '<div class="resumen-vacio">No hay componentes seleccionados</div>';
+        }
+        resumenDiv.innerHTML = html;
+        document.getElementById('totalPrecio').innerHTML = `$${calcularTotal().toLocaleString()}`;
+    }
+
+    function reiniciar() {
+        initSelecciones();
+        renderizarComponentes();
+        actualizarResumen();
+    }
+
+    function configurarPC() {
+        if (!selecciones.microprocesador && !selecciones.mother) {
+            alert("Debes seleccionar al menos un componente principal.");
+            return;
+        }
+        const total = calcularTotal();
+        alert(`PC configurada con éxito. Total: $${total.toLocaleString()}. Guardada en tu perfil.`);
+        const configs = JSON.parse(localStorage.getItem('configuraciones')) || [];
+        configs.push({ id: Date.now(), fecha: new Date(), selecciones: JSON.parse(JSON.stringify(selecciones)), total });
+        localStorage.setItem('configuraciones', JSON.stringify(configs));
+    }
+
+    document.getElementById('resetBtn').addEventListener('click', reiniciar);
+    document.getElementById('resetAllBtn').addEventListener('click', reiniciar);
+    document.getElementById('configurarBtn').addEventListener('click', configurarPC);
+
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const userNameSpan = document.getElementById('userNameDisplay');
+    if (currentUser && userNameSpan) userNameSpan.textContent = currentUser.name;
+
+    document.getElementById('globalSearch').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') window.location.href = `productos-lista.html?buscar=${encodeURIComponent(e.target.value)}`;
+    });
+
+    const floatingButton = document.querySelector('.floating-button');
+    const floatingMenu = document.querySelector('.floating-menu');
+    if (floatingButton && floatingMenu) {
+        floatingButton.addEventListener('click', (e) => { e.stopPropagation(); floatingMenu.classList.toggle('show'); });
+        document.addEventListener('click', (e) => { if (!floatingButton.contains(e.target) && !floatingMenu.contains(e.target)) floatingMenu.classList.remove('show'); });
+    }
+
+    renderizarComponentes();
+    actualizarResumen();
+</script>
+</body>
+</html>

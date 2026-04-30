@@ -1,0 +1,83 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cholo Krause: Electronic arts. - Preguntas frecuentes</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <div class="logo">Cholo Krause: Electronic arts.</div>
+    <nav>
+        <a href="index.html">Inicio</a>
+        <a href="productos.html">Productos</a>
+        <a href="armatupc.html">Arma tu PC</a>
+    </nav>
+    <div class="buscador">
+        <input type="text" id="globalSearch" placeholder="Buscar...">
+    </div>
+    <div class="usuario">
+        <a href="login.html">
+            <svg class="user-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="8" r="4" stroke="white" stroke-width="1.5"/>
+                <path d="M5 20v-2a7 7 0 0 1 14 0v2" stroke="white" stroke-width="1.5"/>
+            </svg>
+        </a>
+        <span class="user-name" id="userNameDisplay"></span>
+    </div>
+</header>
+
+<main>
+    <div class="main-container">
+        <h1>Preguntas Frecuentes</h1>
+        <div class="info"><p>Encuentra respuestas a las preguntas más comunes sobre cómo comprar y armar tu PC.</p></div>
+        <div class="faq-section">
+            <div class="faq-item"><div class="faq-question">¿Cómo realizo una compra? <span class="toggle-icon">+</span></div><div class="faq-answer">Es muy sencillo: navega, agrega al carrito, finaliza compra y completa tus datos.</div></div>
+            <div class="faq-item"><div class="faq-question">¿Cuánto cuesta el envío? <span class="toggle-icon">+</span></div><div class="faq-answer">El envío es gratis en compras mayores a $150,000 en CABA y GBA, y $200,000 al interior.</div></div>
+            <div class="faq-item"><div class="faq-question">¿Los productos tienen garantía? <span class="toggle-icon">+</span></div><div class="faq-answer">Sí, todos tienen garantía oficial de fábrica de 12 a 36 meses según el producto.</div></div>
+            <div class="faq-item"><div class="faq-question">¿Puedo armar mi PC con sus componentes? <span class="toggle-icon">+</span></div><div class="faq-answer">Sí, usa nuestro configurador "Arma tu PC" para elegir componentes compatibles.</div></div>
+        </div>
+    </div>
+</main>
+
+<footer>
+    <p>Cholo Krause: Electronic arts.</p>
+</footer>
+
+<div class="floating-menu-container">
+    <button class="floating-button">☰</button>
+    <div class="floating-menu">
+        <a href="carrito.html">Carrito</a>
+        <a href="favoritos.html">Favoritos</a>
+        <a href="preguntasfrecuentes.html">FAQ</a>
+        <a href="contacto.html">Contacto</a>
+    </div>
+</div>
+
+<script>
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    if (currentUser) document.getElementById('userNameDisplay').textContent = currentUser.name;
+
+    // Acordeón
+    document.querySelectorAll('.faq-question').forEach(q => {
+        q.addEventListener('click', () => {
+            const answer = q.nextElementSibling;
+            const icon = q.querySelector('.toggle-icon');
+            answer.classList.toggle('show');
+            icon.textContent = answer.classList.contains('show') ? '−' : '+';
+        });
+    });
+
+    document.getElementById('globalSearch').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') window.location.href = `productos-lista.html?buscar=${encodeURIComponent(e.target.value)}`;
+    });
+
+    const floatingButton = document.querySelector('.floating-button');
+    const floatingMenu = document.querySelector('.floating-menu');
+    if (floatingButton && floatingMenu) {
+        floatingButton.addEventListener('click', (e) => { e.stopPropagation(); floatingMenu.classList.toggle('show'); });
+        document.addEventListener('click', (e) => { if (!floatingButton.contains(e.target) && !floatingMenu.contains(e.target)) floatingMenu.classList.remove('show'); });
+    }
+</script>
+</body>
+</html>

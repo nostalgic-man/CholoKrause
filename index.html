@@ -1,0 +1,121 @@
+﻿﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cholo Krause: Electronic arts.</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <div class="logo">Cholo Krause: Electronic arts.</div>
+    <nav>
+        <a href="index.html">Inicio</a>
+        <a href="productos.html">Productos</a>
+        <a href="armatupc.html">Arma tu PC</a>
+    </nav>
+    <div class="buscador">
+        <input type="text" id="globalSearch" placeholder="Buscar...">
+    </div>
+    <div class="usuario">
+        <a href="login.html">
+            <svg class="user-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="8" r="4" stroke="white" stroke-width="1.5"/>
+                <path d="M5 20v-2a7 7 0 0 1 14 0v2" stroke="white" stroke-width="1.5"/>
+            </svg>
+        </a>
+        <span class="user-name" id="userNameDisplay"></span>
+    </div>
+</header>
+
+<main>
+    <div class="main-container">
+        <section class="banner">
+            <h1>Bienvenido a Cholo Krause</h1>
+        </section>
+
+        <div class="slider-container">
+            <div class="slider" id="slider"></div>
+            <button class="prev" id="prevBtn">❮</button>
+            <button class="next" id="nextBtn">❯</button>
+        </div>
+
+        <section class="info">
+            <p>Los mejores componentes, PCs armadas y periféricos. Calidad y garantía.</p>
+            <a href="productos.html" class="btn">Ver catálogo completo →</a>
+        </section>
+    </div>
+</main>
+
+<footer>
+    <p>Cholo Krause: Electronic arts. - Tecnología de vanguardia</p>
+</footer>
+
+<div class="floating-menu-container">
+    <button class="floating-button">☰</button>
+    <div class="floating-menu">
+        <a href="carrito.html">Carrito</a>
+        <a href="favoritos.html">Favoritos</a>
+        <a href="preguntasfrecuentes.html">FAQ</a>
+        <a href="contacto.html">Contacto</a>
+    </div>
+</div>
+
+<script src="database.js"></script>
+<script>
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const userNameSpan = document.getElementById('userNameDisplay');
+    if (currentUser && userNameSpan) userNameSpan.textContent = currentUser.name;
+
+    // Slider con productos populares (primeros 5)
+    const populares = getAllProducts().slice(0,5);
+    const sliderDiv = document.getElementById('slider');
+    let slideIndex = 0;
+
+    function renderSlider() {
+        sliderDiv.innerHTML = '';
+        populares.forEach(prod => {
+            const slide = document.createElement('div');
+            slide.className = 'slide';
+            slide.innerHTML = `
+                <a href="producto-detalle.html?id=${prod.id}">
+                    <div class="product-image"><img src="imagenes/${prod.imagen}" alt="${prod.nombre}" style="max-width:150px; margin:0 auto;"></div>
+                    <h3>${prod.nombre}</h3>
+                    <p>${prod.descripcion.substring(0,80)}</p>
+                    <p class="price">$${prod.precio.toLocaleString()}</p>
+                </a>
+            `;
+            sliderDiv.appendChild(slide);
+        });
+        updateSlider();
+    }
+
+    function updateSlider() {
+        sliderDiv.style.transform = `translateX(-${slideIndex * 100}%)`;
+    }
+
+    document.getElementById('prevBtn').addEventListener('click', () => {
+        slideIndex = (slideIndex - 1 + populares.length) % populares.length;
+        updateSlider();
+    });
+    document.getElementById('nextBtn').addEventListener('click', () => {
+        slideIndex = (slideIndex + 1) % populares.length;
+        updateSlider();
+    });
+
+    renderSlider();
+
+    // Búsqueda global
+    document.getElementById('globalSearch').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') window.location.href = `productos-lista.html?buscar=${encodeURIComponent(e.target.value)}`;
+    });
+
+    // Botón flotante
+    const floatingButton = document.querySelector('.floating-button');
+    const floatingMenu = document.querySelector('.floating-menu');
+    if (floatingButton && floatingMenu) {
+        floatingButton.addEventListener('click', (e) => { e.stopPropagation(); floatingMenu.classList.toggle('show'); });
+        document.addEventListener('click', (e) => { if (!floatingButton.contains(e.target) && !floatingMenu.contains(e.target)) floatingMenu.classList.remove('show'); });
+    }
+</script>
+</body>
+</html>

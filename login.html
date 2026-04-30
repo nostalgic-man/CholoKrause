@@ -1,0 +1,251 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cholo Krause: Electronic arts. - Mi cuenta</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <div class="logo">Cholo Krause: Electronic arts.</div>
+    <nav>
+        <a href="index.html">Inicio</a>
+        <a href="productos.html">Productos</a>
+        <a href="armatupc.html">Arma tu PC</a>
+    </nav>
+    <div class="buscador">
+        <input type="text" id="globalSearch" placeholder="Buscar...">
+    </div>
+    <div class="usuario">
+        <a href="login.html">
+            <svg class="user-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="8" r="4" stroke="white" stroke-width="1.5"/>
+                <path d="M5 20v-2a7 7 0 0 1 14 0v2" stroke="white" stroke-width="1.5"/>
+            </svg>
+        </a>
+        <span class="user-name" id="userNameDisplay"></span>
+    </div>
+</header>
+
+<main>
+    <div class="main-container">
+        <div class="auth-container" id="authContainer">
+            <!-- Panel de usuario logueado (mejorado) -->
+            <div class="auth-box user-dashboard" id="userPanel" style="display: none;">
+                <div class="dashboard-header">
+                    <h2>Mi Cuenta</h2>
+                    <p>Bienvenido/a, <strong id="userNameDisplayPanel"></strong></p>
+                </div>
+                <div class="dashboard-stats">
+                    <div class="stat-card">
+                        <span class="stat-value" id="favoritosCount">0</span>
+                        <span class="stat-label">Favoritos</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="configuracionesCount">0</span>
+                        <span class="stat-label">PCs guardadas</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="gastadoTotal">$0</span>
+                        <span class="stat-label">Gastado (simulado)</span>
+                    </div>
+                </div>
+                <div class="dashboard-sections">
+                    <div class="dashboard-section">
+                        <h3>Mis datos</h3>
+                        <p><strong>Email:</strong> <span id="userEmailDisplayPanel"></span></p>
+                        <button class="btn btn-outline" id="cambiarDatosBtn">Editar perfil</button>
+                        <button class="btn btn-outline" id="cambiarPassBtn">Cambiar contraseña</button>
+                    </div>
+                    <div class="dashboard-section">
+                        <h3>Mis configuraciones de PC</h3>
+                        <div id="misConfigsLista">Cargando...</div>
+                        <a href="armatupc.html" class="btn-small">Crear nueva PC</a>
+                    </div>
+                    <div class="dashboard-section">
+                        <h3>Órdenes recientes</h3>
+                        <div id="ordenesRecientes">No hay órdenes recientes.</div>
+                        <a href="carrito.html" class="btn-small">Ver carrito</a>
+                    </div>
+                </div>
+                <div class="dashboard-actions">
+                    <button class="btn logout-btn" id="logoutBtn">Cerrar Sesión</button>
+                </div>
+            </div>
+
+            <!-- Login (inicialmente visible si no hay sesión) -->
+            <div class="auth-box" id="loginBox">
+                <h2>Iniciar Sesión</h2>
+                <form id="loginForm">
+                    <div class="form-group"><label>Correo electrónico</label><input type="email" id="loginEmail" required></div>
+                    <div class="form-group"><label>Contraseña</label><input type="password" id="loginPassword" required></div>
+                    <button type="submit" class="btn">Ingresar</button>
+                    <div class="error-message" id="loginError"></div>
+                </form>
+                <div class="separator"><span>o</span></div>
+                <div class="switch-auth">¿No tienes cuenta? <a href="#" id="showRegister">Regístrate aquí</a></div>
+            </div>
+
+            <!-- Registro -->
+            <div class="auth-box" id="registerBox" style="display: none;">
+                <h2>Registrarse</h2>
+                <form id="registerForm">
+                    <div class="form-group"><label>Nombre completo</label><input type="text" id="registerName" required></div>
+                    <div class="form-group"><label>Correo electrónico</label><input type="email" id="registerEmail" required></div>
+                    <div class="form-group"><label>Contraseña</label><input type="password" id="registerPassword" required></div>
+                    <div class="form-group"><label>Confirmar contraseña</label><input type="password" id="registerConfirmPassword" required></div>
+                    <button type="submit" class="btn">Registrarse</button>
+                    <div class="error-message" id="registerError"></div>
+                    <div class="success-message" id="registerSuccess"></div>
+                </form>
+                <div class="separator"><span>o</span></div>
+                <div class="switch-auth">¿Ya tienes cuenta? <a href="#" id="showLogin">Inicia sesión aquí</a></div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer>
+    <p>Cholo Krause: Electronic arts.</p>
+</footer>
+
+<div class="floating-menu-container">
+    <button class="floating-button">☰</button>
+    <div class="floating-menu">
+        <a href="carrito.html">Carrito</a>
+        <a href="favoritos.html">Favoritos</a>
+        <a href="preguntasfrecuentes.html">FAQ</a>
+        <a href="contacto.html">Contacto</a>
+    </div>
+</div>
+
+<script src="database.js"></script>
+<script>
+    let users = JSON.parse(localStorage.getItem('users')) || [];
+    let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
+    const userNameHeader = document.getElementById('userNameDisplay');
+    if (currentUser) userNameHeader.textContent = currentUser.name;
+
+    const loginBox = document.getElementById('loginBox');
+    const registerBox = document.getElementById('registerBox');
+    const userPanel = document.getElementById('userPanel');
+    const showRegister = document.getElementById('showRegister');
+    const showLogin = document.getElementById('showLogin');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    // Funciones auxiliares para el panel de usuario
+    function actualizarDashboard() {
+        if (!currentUser) return;
+        document.getElementById('userNameDisplayPanel').textContent = currentUser.name;
+        document.getElementById('userEmailDisplayPanel').textContent = currentUser.email;
+        
+        // Favoritos
+        const favoritos = JSON.parse(localStorage.getItem('favoritos')) || [];
+        document.getElementById('favoritosCount').textContent = favoritos.length;
+        
+        // Configuraciones guardadas
+        const configs = JSON.parse(localStorage.getItem('configuraciones')) || [];
+        const misConfigs = configs.filter(c => c.userId === currentUser.id || !c.userId); // compatibilidad con configs viejas
+        document.getElementById('configuracionesCount').textContent = misConfigs.length;
+        if (misConfigs.length > 0) {
+            let html = '<ul>';
+            misConfigs.slice(0, 3).forEach(c => {
+                html += `<li>${new Date(c.fecha).toLocaleDateString()} - $${c.total.toLocaleString()}</li>`;
+            });
+            if (misConfigs.length > 3) html += `<li>... y ${misConfigs.length-3} más</li>`;
+            html += '</ul><a href="armatupc.html#mis-configuraciones" class="btn-small">Ver todas</a>';
+            document.getElementById('misConfigsLista').innerHTML = html;
+        } else {
+            document.getElementById('misConfigsLista').innerHTML = 'No tienes PCs guardadas.';
+        }
+        
+        // Órdenes recientes (simulado, se puede tomar del carrito o compras finalizadas)
+        // Por ahora, usamos el carrito como referencia
+        const carrito = JSON.parse(localStorage.getItem('carrito')) || [];
+        if (carrito.length > 0) {
+            document.getElementById('ordenesRecientes').innerHTML = `<p>Tienes ${carrito.length} producto(s) en el carrito.</p><a href="carrito.html">Finalizar compra pendiente</a>`;
+        } else {
+            document.getElementById('ordenesRecientes').innerHTML = 'No hay órdenes recientes.';
+        }
+        
+        // Simular gasto total (podría ser de un historial de compras)
+        let totalGastado = 0;
+        // Aquí puedes implementar lógica real con un array de compras, por ahora valor aleatorio
+        const gastadoStorage = localStorage.getItem(`gastado_${currentUser.id}`);
+        if (gastadoStorage) totalGastado = parseInt(gastadoStorage);
+        else totalGastado = Math.floor(Math.random() * 500000);
+        document.getElementById('gastadoTotal').innerHTML = `$${totalGastado.toLocaleString()}`;
+    }
+
+    function updateUI() {
+        if (currentUser) {
+            loginBox.style.display = 'none';
+            registerBox.style.display = 'none';
+            userPanel.style.display = 'block';
+            actualizarDashboard();
+            if (userNameHeader) userNameHeader.textContent = currentUser.name;
+        } else {
+            loginBox.style.display = 'block';
+            registerBox.style.display = 'none';
+            userPanel.style.display = 'none';
+            if (userNameHeader) userNameHeader.textContent = '';
+        }
+    }
+
+    function saveCurrentUser(user) { currentUser = user; localStorage.setItem('currentUser', JSON.stringify(user)); updateUI(); }
+    function logout() { currentUser = null; localStorage.removeItem('currentUser'); updateUI(); }
+
+    showRegister.addEventListener('click', (e) => { e.preventDefault(); loginBox.style.display = 'none'; registerBox.style.display = 'block'; userPanel.style.display = 'none'; });
+    showLogin.addEventListener('click', (e) => { e.preventDefault(); loginBox.style.display = 'block'; registerBox.style.display = 'none'; userPanel.style.display = 'none'; });
+
+    loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+        const user = users.find(u => u.email === email && u.password === password);
+        if (user) { saveCurrentUser(user); window.location.href = 'login.html'; }
+        else { document.getElementById('loginError').textContent = 'Credenciales incorrectas'; document.getElementById('loginError').style.display = 'block'; }
+    });
+
+    registerForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('registerName').value;
+        const email = document.getElementById('registerEmail').value;
+        const password = document.getElementById('registerPassword').value;
+        const confirm = document.getElementById('registerConfirmPassword').value;
+        if (password !== confirm) { showRegisterError('Las contraseñas no coinciden'); return; }
+        if (users.some(u => u.email === email)) { showRegisterError('Email ya registrado'); return; }
+        if (password.length < 6) { showRegisterError('Mínimo 6 caracteres'); return; }
+        const newUser = { id: Date.now(), name, email, password, createdAt: new Date().toISOString() };
+        users.push(newUser);
+        localStorage.setItem('users', JSON.stringify(users));
+        document.getElementById('registerSuccess').textContent = 'Registro exitoso. Ya puedes iniciar sesión.';
+        document.getElementById('registerSuccess').style.display = 'block';
+        setTimeout(() => { loginBox.style.display = 'block'; registerBox.style.display = 'none'; }, 1500);
+    });
+
+    function showRegisterError(msg) { const err = document.getElementById('registerError'); err.textContent = msg; err.style.display = 'block'; }
+    logoutBtn.addEventListener('click', () => { logout(); window.location.href = 'index.html'; });
+
+    // Botones adicionales del dashboard
+    document.getElementById('cambiarDatosBtn')?.addEventListener('click', () => alert('Funcionalidad en desarrollo: Editar perfil.'));
+    document.getElementById('cambiarPassBtn')?.addEventListener('click', () => alert('Funcionalidad en desarrollo: Cambiar contraseña.'));
+
+    updateUI();
+
+    // Búsqueda global
+    document.getElementById('globalSearch').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') window.location.href = `productos-lista.html?buscar=${encodeURIComponent(e.target.value)}`;
+    });
+
+    const floatingButton = document.querySelector('.floating-button');
+    const floatingMenu = document.querySelector('.floating-menu');
+    if (floatingButton && floatingMenu) {
+        floatingButton.addEventListener('click', (e) => { e.stopPropagation(); floatingMenu.classList.toggle('show'); });
+        document.addEventListener('click', (e) => { if (!floatingButton.contains(e.target) && !floatingMenu.contains(e.target)) floatingMenu.classList.remove('show'); });
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cholo Krause: Electronic arts. - Productos</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="catalogo-fondo">
+<header>
+    <div class="logo">Cholo Krause: Electronic arts.</div>
+    <nav>
+        <a href="index.html">Inicio</a>
+        <a href="productos.html">Productos</a>
+        <a href="armatupc.html">Arma tu PC</a>
+    </nav>
+    <div class="buscador">
+        <input type="text" id="globalSearch" placeholder="Buscar...">
+    </div>
+    <div class="usuario">
+        <a href="login.html">
+            <svg class="user-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="8" r="4" stroke="white" stroke-width="1.5"/>
+                <path d="M5 20v-2a7 7 0 0 1 14 0v2" stroke="white" stroke-width="1.5"/>
+            </svg>
+        </a>
+        <span class="user-name" id="userNameDisplay"></span>
+    </div>
+</header>
+
+<main>
+    <div class="main-container">
+        <h1 class="products-title">Nuestros Productos</h1>
+        <p class="products-subtitle">Selecciona una categoría para explorar</p>
+
+        <div class="categories-container">
+            <button class="category-btn" data-category="hardware">Hardware</button>
+            <button class="category-btn" data-category="placasvideo">Placas de Video</button>
+            <button class="category-btn" data-category="coolers">Coolers</button>
+            <button class="category-btn" data-category="gabinetes">Gabinetes</button>
+            <button class="category-btn" data-category="monitores">Monitores</button>
+            <button class="category-btn" data-category="perifericos">Periféricos</button>
+        </div>
+
+        <!-- Panel Hardware -->
+        <div id="panel-hardware" class="subcategories-panel">
+            <div class="panel-header"><h2>Hardware</h2><button class="close-panel" data-panel="hardware">✕</button></div>
+            <div class="panel-content">
+                <div class="subcategory-grid">
+                    <div class="subcategory-item" data-subcategory="procesadores">Procesadores</div>
+                    <div class="subcategory-item" data-subcategory="placas_video">Placas de Video</div>
+                    <div class="subcategory-item" data-subcategory="motherboards">Motherboards</div>
+                    <div class="subcategory-item" data-subcategory="memorias_ram">Memoria RAM</div>
+                    <div class="subcategory-item" data-subcategory="almacenamiento">Almacenamiento</div>
+                    <div class="subcategory-item" data-subcategory="gabinetes">Gabinetes</div>
+                    <div class="subcategory-item" data-subcategory="fuentes_poder">Fuentes de Poder</div>
+                    <div class="subcategory-item" data-subcategory="coolers">Coolers</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel Placas de Video -->
+        <div id="panel-placasvideo" class="subcategories-panel">
+            <div class="panel-header"><h2>Placas de Video</h2><button class="close-panel" data-panel="placasvideo">✕</button></div>
+            <div class="panel-content">
+                <div class="subcategory-grid">
+                    <div class="subcategory-item" data-subcategory="placas_video">Todas las Placas de Video</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel Coolers -->
+        <div id="panel-coolers" class="subcategories-panel">
+            <div class="panel-header"><h2>Coolers</h2><button class="close-panel" data-panel="coolers">✕</button></div>
+            <div class="panel-content">
+                <div class="subcategory-grid">
+                    <div class="subcategory-item" data-subcategory="coolers">Todos los Coolers</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel Gabinetes -->
+        <div id="panel-gabinetes" class="subcategories-panel">
+            <div class="panel-header"><h2>Gabinetes</h2><button class="close-panel" data-panel="gabinetes">✕</button></div>
+            <div class="panel-content">
+                <div class="subcategory-grid">
+                    <div class="subcategory-item" data-subcategory="gabinetes">Todos los Gabinetes</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel Monitores -->
+        <div id="panel-monitores" class="subcategories-panel">
+            <div class="panel-header"><h2>Monitores</h2><button class="close-panel" data-panel="monitores">✕</button></div>
+            <div class="panel-content">
+                <div class="subcategory-grid">
+                    <div class="subcategory-item" data-subcategory="monitores">Todos los Monitores</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel Periféricos -->
+        <div id="panel-perifericos" class="subcategories-panel">
+            <div class="panel-header"><h2>Periféricos</h2><button class="close-panel" data-panel="perifericos">✕</button></div>
+            <div class="panel-content">
+                <div class="subcategory-grid">
+                    <div class="subcategory-item" data-subcategory="perifericos">Todos los Periféricos</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer>
+    <p>Cholo Krause: Electronic arts.</p>
+</footer>
+
+<div class="floating-menu-container">
+    <button class="floating-button">☰</button>
+    <div class="floating-menu">
+        <a href="carrito.html">Carrito</a>
+        <a href="favoritos.html">Favoritos</a>
+        <a href="preguntasfrecuentes.html">FAQ</a>
+        <a href="contacto.html">Contacto</a>
+    </div>
+</div>
+
+<script src="database.js"></script>
+<script>
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const userNameSpan = document.getElementById('userNameDisplay');
+    if (currentUser) userNameSpan.textContent = currentUser.name;
+
+    // Lógica de paneles
+    const categoryBtns = document.querySelectorAll('.category-btn');
+    const panels = document.querySelectorAll('.subcategories-panel');
+    const closeBtns = document.querySelectorAll('.close-panel');
+
+    categoryBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const cat = btn.getAttribute('data-category');
+            panels.forEach(p => p.classList.remove('show'));
+            const panel = document.getElementById(`panel-${cat}`);
+            if (panel) panel.classList.add('show');
+        });
+    });
+    closeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const panelId = btn.getAttribute('data-panel');
+            document.getElementById(`panel-${panelId}`)?.classList.remove('show');
+        });
+    });
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.category-btn') && !e.target.closest('.subcategories-panel')) {
+            panels.forEach(p => p.classList.remove('show'));
+        }
+    });
+
+    // Redirigir a lista de productos
+    document.querySelectorAll('.subcategory-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const sub = item.getAttribute('data-subcategory');
+            window.location.href = `productos-lista.html?subcategoria=${sub}`;
+        });
+    });
+
+    // Búsqueda global
+    document.getElementById('globalSearch').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') window.location.href = `productos-lista.html?buscar=${encodeURIComponent(e.target.value)}`;
+    });
+
+    // Botón flotante
+    const floatingButton = document.querySelector('.floating-button');
+    const floatingMenu = document.querySelector('.floating-menu');
+    if (floatingButton && floatingMenu) {
+        floatingButton.addEventListener('click', (e) => { e.stopPropagation(); floatingMenu.classList.toggle('show'); });
+        document.addEventListener('click', (e) => { if (!floatingButton.contains(e.target) && !floatingMenu.contains(e.target)) floatingMenu.classList.remove('show'); });
+    }
+</script>
+</body>
+</html>

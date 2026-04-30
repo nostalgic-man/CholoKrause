@@ -1,0 +1,136 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cholo Krause: Electronic arts. - Carrito</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <div class="logo">Cholo Krause: Electronic arts.</div>
+    <nav>
+        <a href="index.html">Inicio</a>
+        <a href="productos.html">Productos</a>
+        <a href="armatupc.html">Arma tu PC</a>
+    </nav>
+    <div class="buscador"><input type="text" id="globalSearch" placeholder="Buscar..."></div>
+    <div class="usuario">
+        <a href="login.html">
+            <svg class="user-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="8" r="4" stroke="white" stroke-width="1.5"/>
+                <path d="M5 20v-2a7 7 0 0 1 14 0v2" stroke="white" stroke-width="1.5"/>
+            </svg>
+        </a>
+        <span class="user-name" id="userNameDisplay"></span>
+    </div>
+</header>
+
+<main>
+    <div class="main-container">
+        <div class="carrito-container">
+            <div class="carrito-header">
+                <h1>Tu Carrito de Compras</h1>
+                <p>Revisa los productos seleccionados</p>
+            </div>
+            <div id="carritoContent"></div>
+        </div>
+    </div>
+</main>
+
+<footer>
+    <p>Cholo Krause: Electronic arts.</p>
+</footer>
+
+<div class="floating-menu-container">
+    <button class="floating-button">☰</button>
+    <div class="floating-menu">
+        <a href="carrito.html">Carrito</a>
+        <a href="favoritos.html">Favoritos</a>
+        <a href="preguntasfrecuentes.html">FAQ</a>
+        <a href="contacto.html">Contacto</a>
+    </div>
+</div>
+
+<script src="database.js"></script>
+<script>
+    let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
+
+    function guardarCarrito() {
+        localStorage.setItem('carrito', JSON.stringify(carrito));
+        renderizarCarrito();
+    }
+
+    function actualizarCantidad(idx, nueva) {
+        if (nueva < 1) eliminarProducto(idx);
+        else { carrito[idx].cantidad = Math.min(99, nueva); guardarCarrito(); }
+    }
+
+    function eliminarProducto(idx) {
+        if (confirm('¿Eliminar producto del carrito?')) {
+            carrito.splice(idx, 1);
+            guardarCarrito();
+        }
+    }
+
+    function vaciarCarrito() {
+        if (confirm('¿Vaciar todo el carrito?')) {
+            carrito = [];
+            guardarCarrito();
+        }
+    }
+
+    function calcularTotal() {
+        return carrito.reduce((t, item) => t + (item.precio * (item.cantidad || 1)), 0);
+    }
+
+    function finalizarCompra() {
+        if (carrito.length === 0) alert('El carrito está vacío');
+        else {
+            alert(`Compra realizada por $${calcularTotal().toLocaleString()}. Gracias.`);
+            carrito = [];
+            guardarCarrito();
+        }
+    }
+
+    function renderizarCarrito() {
+        const container = document.getElementById('carritoContent');
+        if (carrito.length === 0) {
+            container.innerHTML = '<div class="carrito-vacio"><h3>Carrito vacío</h3><a href="productos.html" class="btn">Ir a productos</a></div>';
+            return;
+        }
+        let html = `<table class="carrito-tabla"><thead><tr><th>Producto</th><th>Precio unitario</th><th>Cantidad</th><th>Subtotal</th><th></th></tr></thead><tbody>`;
+        carrito.forEach((item, i) => {
+            const cant = item.cantidad || 1;
+            const subtotal = item.precio * cant;
+            html += `<tr>
+                        <td data-label="Producto">${item.nombre}<br><small>${item.marca || ''}</small></td>
+                        <td data-label="Precio unitario">$${item.precio.toLocaleString()}</td>
+                        <td data-label="Cantidad"><button class="cantidad-btn" onclick="actualizarCantidad(${i}, ${cant-1})">-</button> ${cant} <button class="cantidad-btn" onclick="actualizarCantidad(${i}, ${cant+1})">+</button></td>
+                        <td data-label="Subtotal">$${subtotal.toLocaleString()}</td>
+                        <td data-label="Eliminar"><button onclick="eliminarProducto(${i})">Eliminar</button></td>
+                      </tr>`;
+        });
+        html += `</tbody></table><div class="carrito-resumen"><div>Total: $${calcularTotal().toLocaleString()} (IVA incluido)</div><div><button class="btn-vaciar" onclick="vaciarCarrito()">Vaciar carrito</button> <button class="btn-finalizar" onclick="finalizarCompra()">Finalizar compra</button></div></div>`;
+        container.innerHTML = html;
+    }
+
+    window.actualizarCantidad = actualizarCantidad;
+    window.eliminarProducto = eliminarProducto;
+    window.vaciarCarrito = vaciarCarrito;
+    window.finalizarCompra = finalizarCompra;
+
+    renderizarCarrito();
+
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    if (currentUser) document.getElementById('userNameDisplay').textContent = currentUser.name;
+    document.getElementById('globalSearch').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') window.location.href = `productos-lista.html?buscar=${encodeURIComponent(e.target.value)}`;
+    });
+    const fb = document.querySelector('.floating-button'), fm = document.querySelector('.floating-menu');
+    if (fb && fm) {
+        fb.addEventListener('click', (e) => { e.stopPropagation(); fm.classList.toggle('show'); });
+        document.addEventListener('click', (e) => { if (!fb.contains(e.target) && !fm.contains(e.target)) fm.classList.remove('show'); });
+    }
+</script>
+</body>
+</html>
