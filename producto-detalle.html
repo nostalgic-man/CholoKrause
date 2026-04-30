@@ -30,9 +30,12 @@
 <main>
     <div class="main-container">
         <div class="breadcrumb">
-            <a href="index.html">Inicio</a> > <a href="productos.html">Productos</a> > <span id="productNameSpan"></span>
+            <a href="index.html">Inicio</a> &gt;
+            <a href="productos.html">Productos</a> &gt;
+            <span id="breadcrumbCategory"></span> &gt;
+            <span id="productNameSpan"></span>
         </div>
-        <div id="detailContainer"></div>
+        <div id="detailContainer" class="product-detail-wrapper"></div>
     </div>
 </main>
 
@@ -52,108 +55,170 @@
 
 <script src="database.js"></script>
 <script>
+    // Obtener producto por ID
     const urlParams = new URLSearchParams(window.location.search);
     const productId = parseInt(urlParams.get('id'));
     const producto = getProductById(productId);
+    const userNameSpan = document.getElementById('userNameDisplay');
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    if (currentUser) userNameSpan.textContent = currentUser.name;
+
+    // Para el breadcrumb, determinar categoría (búsqueda en productosDB)
+    let categoriaEncontrada = '';
+    for (let cat in productosDB) {
+        if (productosDB[cat].some(p => p.id === productId)) {
+            categoriaEncontrada = cat;
+            break;
+        }
+    }
+    const nombresCategorias = {
+        procesadores: "Procesadores",
+        placas_video: "Placas de Video",
+        coolers: "Coolers",
+        gabinetes: "Gabinetes",
+        monitores: "Monitores",
+        perifericos: "Periféricos",
+        motherboards: "Motherboards",
+        memorias_ram: "Memorias RAM",
+        almacenamiento: "Almacenamiento",
+        fuentes_poder: "Fuentes de Poder",
+        pc_armadas: "PC Armadas"
+    };
+    const nombreCategoria = nombresCategorias[categoriaEncontrada] || "Productos";
+    document.getElementById('breadcrumbCategory').innerHTML = `<a href="productos-lista.html?subcategoria=${categoriaEncontrada}">${nombreCategoria}</a>`;
+    document.getElementById('productNameSpan').innerHTML = producto ? producto.nombre : 'Producto no encontrado';
 
     if (!producto) {
-        document.getElementById('detailContainer').innerHTML = '<div style="padding:60px;text-align:center">Producto no encontrado</div>';
+        document.getElementById('detailContainer').innerHTML = `
+            <div class="error-message" style="text-align:center; padding:4rem;">
+                <h2>Producto no encontrado</h2>
+                <p>El producto que buscas no existe o ha sido removido.</p>
+                <a href="productos.html" class="btn">Ver catálogo</a>
+            </div>
+        `;
     } else {
-        document.getElementById('productNameSpan').innerText = producto.nombre;
-
-        // Generar especificaciones en base a las propiedades del producto
-        let specsHtml = '<ul>';
+        // Generar especificaciones en formato lista bonita
+        let specsHtml = '<div class="specs-grid">';
+        // Lista de propiedades a mostrar (excluir las que no interesan)
+        const excludeKeys = ['id', 'nombre', 'precio', 'marca', 'descripcion', 'imagen'];
         for (let [key, value] of Object.entries(producto)) {
-            if (['id', 'nombre', 'precio', 'marca', 'descripcion', 'imagen'].includes(key)) continue;
-            if (value === undefined || value === null) continue;
-            if (typeof value === 'boolean') value = value ? 'Si' : 'No';
-            if (Array.isArray(value)) value = value.join(', ');
-            specsHtml += `<li><strong>${key}:</strong> ${value}</li>`;
-        }
-        specsHtml += '</ul>';
-
-        const html = `
-            <div class="detail-container">
-                <div class="product-gallery">
-                    <div class="main-image"><img src="imagenes/${producto.imagen}" alt="${producto.nombre}" style="max-width:100%; border-radius:20px;"></div>
+            if (excludeKeys.includes(key)) continue;
+            if (value === undefined || value === null || value === '') continue;
+            let displayValue = value;
+            if (typeof value === 'boolean') displayValue = value ? 'Sí' : 'No';
+            if (Array.isArray(value)) displayValue = value.join(', ');
+            // Formatear clave para mostrar bonito
+            let displayKey = key
+                .replace(/_/g, ' ')
+                .replace(/\b\w/g, l => l.toUpperCase());
+            specsHtml += `
+                <div class="spec-item">
+                    <div class="spec-label">${displayKey}</div>
+                    <div class="spec-value">${displayValue}</div>
                 </div>
-                <div class="product-info-detail">
-                    <h1>${producto.nombre}</h1>
-                    <div class="product-brand">${producto.marca}</div>
-                    <div class="product-price-detail">$${producto.precio.toLocaleString()} <small>IVA incluido</small></div>
+            `;
+        }
+        specsHtml += '</div>';
+
+        // Construir página de detalle
+        const detailHtml = `
+            <div class="product-detail">
+                <div class="product-detail-image">
+                    <img src="imagenes/${producto.imagen}" alt="${producto.nombre}" onerror="this.src='imagenes/placeholder.jpg'">
+                </div>
+                <div class="product-detail-info">
+                    <h1 class="product-detail-title">${producto.nombre}</h1>
+                    <div class="product-detail-brand">${producto.marca}</div>
+                    <div class="product-detail-price">$${producto.precio.toLocaleString()} <small>IVA incluido</small></div>
+                    <div class="product-detail-description">${producto.descripcion}</div>
                     <div class="quantity-selector">
-                        <label>Cantidad:</label>
+                        <label for="cantidad">Cantidad:</label>
                         <div class="quantity-control">
-                            <button class="quantity-btn" onclick="cambiarCantidad(-1)">-</button>
+                            <button class="quantity-btn" id="minusBtn">-</button>
                             <input type="number" id="cantidad" value="1" min="1" max="10">
-                            <button class="quantity-btn" onclick="cambiarCantidad(1)">+</button>
+                            <button class="quantity-btn" id="plusBtn">+</button>
                         </div>
                     </div>
-                    <div class="action-buttons">
-                        <button class="btn-buy" onclick="comprarAhora()">Comprar ahora</button>
-                        <button class="btn-cart" onclick="agregarAlCarrito()">Agregar al carrito</button>
-                        <button class="btn-favorite" onclick="agregarAFavoritos()">Favorito</button>
+                    <div class="product-detail-buttons">
+                        <button class="btn btn-primary" id="comprarAhoraBtn">Comprar ahora</button>
+                        <button class="btn btn-secondary" id="agregarCarritoBtn">Agregar al carrito</button>
+                        <button class="btn btn-outline" id="favoritoBtn">Favorito</button>
                     </div>
                 </div>
-                <div class="specs-table">
+                <div class="product-detail-specs">
                     <h3>Especificaciones técnicas</h3>
-                    <div>${producto.descripcion}</div>
                     ${specsHtml}
                 </div>
             </div>
         `;
-        document.getElementById('detailContainer').innerHTML = html;
+        document.getElementById('detailContainer').innerHTML = detailHtml;
+
+        // Lógica de cantidad
+        const cantidadInput = document.getElementById('cantidad');
+        document.getElementById('minusBtn').addEventListener('click', () => {
+            let val = parseInt(cantidadInput.value);
+            if (val > 1) cantidadInput.value = val - 1;
+        });
+        document.getElementById('plusBtn').addEventListener('click', () => {
+            let val = parseInt(cantidadInput.value);
+            if (val < 10) cantidadInput.value = val + 1;
+        });
+
+        // Botones de acción
+        function agregarAlCarrito() {
+            const cantidad = parseInt(cantidadInput.value);
+            let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
+            const existente = carrito.find(item => item.id === producto.id);
+            if (existente) {
+                existente.cantidad = (existente.cantidad || 1) + cantidad;
+            } else {
+                carrito.push({ ...producto, cantidad: cantidad });
+            }
+            localStorage.setItem('carrito', JSON.stringify(carrito));
+            alert(`${producto.nombre} agregado al carrito (x${cantidad})`);
+        }
+
+        function comprarAhora() {
+            agregarAlCarrito();
+            window.location.href = 'carrito.html';
+        }
+
+        function agregarAFavoritos() {
+            let favoritos = JSON.parse(localStorage.getItem('favoritos')) || [];
+            if (!favoritos.find(f => f.id === producto.id)) {
+                favoritos.push(producto);
+                localStorage.setItem('favoritos', JSON.stringify(favoritos));
+                alert(`${producto.nombre} agregado a favoritos`);
+            } else {
+                alert('Este producto ya está en favoritos');
+            }
+        }
+
+        document.getElementById('agregarCarritoBtn').addEventListener('click', agregarAlCarrito);
+        document.getElementById('comprarAhoraBtn').addEventListener('click', comprarAhora);
+        document.getElementById('favoritoBtn').addEventListener('click', agregarAFavoritos);
     }
-
-    function cambiarCantidad(delta) {
-        const input = document.getElementById('cantidad');
-        let val = parseInt(input.value);
-        val = Math.min(10, Math.max(1, val + delta));
-        input.value = val;
-    }
-
-    function agregarAlCarrito() {
-        const cantidad = parseInt(document.getElementById('cantidad').value);
-        let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
-        const existente = carrito.find(i => i.id === producto.id);
-        if (existente) existente.cantidad = (existente.cantidad || 1) + cantidad;
-        else carrito.push({ ...producto, cantidad: cantidad });
-        localStorage.setItem('carrito', JSON.stringify(carrito));
-        alert(`${producto.nombre} agregado al carrito`);
-    }
-
-    function comprarAhora() {
-        agregarAlCarrito();
-        window.location.href = 'carrito.html';
-    }
-
-    function agregarAFavoritos() {
-        let favoritos = JSON.parse(localStorage.getItem('favoritos')) || [];
-        if (!favoritos.find(f => f.id === producto.id)) {
-            favoritos.push(producto);
-            localStorage.setItem('favoritos', JSON.stringify(favoritos));
-            alert(`${producto.nombre} agregado a favoritos`);
-        } else alert('Ya está en favoritos');
-    }
-
-    window.cambiarCantidad = cambiarCantidad;
-    window.agregarAlCarrito = agregarAlCarrito;
-    window.comprarAhora = comprarAhora;
-    window.agregarAFavoritos = agregarAFavoritos;
-
-    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-    if (currentUser) document.getElementById('userNameDisplay').textContent = currentUser.name;
 
     // Búsqueda global
     document.getElementById('globalSearch').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') window.location.href = `productos-lista.html?buscar=${encodeURIComponent(e.target.value)}`;
+        if (e.key === 'Enter') {
+            window.location.href = `productos-lista.html?buscar=${encodeURIComponent(e.target.value)}`;
+        }
     });
 
+    // Botón flotante
     const floatingButton = document.querySelector('.floating-button');
     const floatingMenu = document.querySelector('.floating-menu');
     if (floatingButton && floatingMenu) {
-        floatingButton.addEventListener('click', (e) => { e.stopPropagation(); floatingMenu.classList.toggle('show'); });
-        document.addEventListener('click', (e) => { if (!floatingButton.contains(e.target) && !floatingMenu.contains(e.target)) floatingMenu.classList.remove('show'); });
+        floatingButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            floatingMenu.classList.toggle('show');
+        });
+        document.addEventListener('click', (e) => {
+            if (!floatingButton.contains(e.target) && !floatingMenu.contains(e.target)) {
+                floatingMenu.classList.remove('show');
+            }
+        });
     }
 </script>
 </body>
