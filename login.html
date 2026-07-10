@@ -4,6 +4,54 @@
     <meta charset="UTF-8">
     <title>Cholo Krause: Electronic arts. - Mi cuenta</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            min-width: 200px;
+            max-width: 350px;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.success { background-color: #28a745; }
+        .toast.error { background-color: #dc3545; }
+        .toast.info { background-color: #17a2b8; }
+        .auth-box .error-message { color: #dc3545; font-size: 0.9rem; margin-top: 8px; display: none; }
+        .auth-box .success-message { color: #28a745; font-size: 0.9rem; margin-top: 8px; display: none; }
+        .code-display-box {
+            background: #f1f8ff;
+            border: 1px dashed #007bff;
+            border-radius: 8px;
+            padding: 14px;
+            text-align: center;
+            margin-bottom: 18px;
+        }
+        .code-display-box .aviso-simulado {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin: 0 0 6px 0;
+        }
+        .code-shown {
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: 6px;
+            color: #007bff;
+        }
+    </style>
 </head>
 <body>
 <header>
@@ -30,7 +78,7 @@
 <main>
     <div class="main-container">
         <div class="auth-container" id="authContainer">
-            <!-- Panel de usuario logueado (mejorado) -->
+            <!-- Panel de usuario -->
             <div class="auth-box user-dashboard" id="userPanel" style="display: none;">
                 <div class="dashboard-header">
                     <h2>Mi Cuenta</h2>
@@ -73,7 +121,7 @@
                 </div>
             </div>
 
-            <!-- Login (inicialmente visible si no hay sesión) -->
+            <!-- Login -->
             <div class="auth-box" id="loginBox">
                 <h2>Iniciar Sesión</h2>
                 <form id="loginForm">
@@ -101,6 +149,27 @@
                 <div class="separator"><span>o</span></div>
                 <div class="switch-auth">¿Ya tienes cuenta? <a href="#" id="showLogin">Inicia sesión aquí</a></div>
             </div>
+
+            <!-- Verificación de email -->
+            <div class="auth-box" id="verifyBox" style="display: none;">
+                <h2>Verifica tu correo electrónico</h2>
+                <p>Enviamos un código a <strong id="verifyEmailDisplay"></strong>.</p>
+                <div class="code-display-box">
+                    <p class="aviso-simulado">📩 Simulación de envío (no hay servidor de mail real). Tu código es:</p>
+                    <div class="code-shown" id="codeShown">------</div>
+                </div>
+                <form id="verifyForm">
+                    <div class="form-group">
+                        <label>Código de verificación</label>
+                        <input type="text" id="verifyCodeInput" maxlength="6" placeholder="Ingresa el código de 6 dígitos" required>
+                    </div>
+                    <button type="submit" class="btn">Verificar cuenta</button>
+                    <div class="error-message" id="verifyError"></div>
+                    <div class="success-message" id="verifySuccess"></div>
+                </form>
+                <div class="separator"><span>o</span></div>
+                <div class="switch-auth">¿No llegó (nunca llega, es simulado)? <a href="#" id="resendCodeLink">Reenviar código</a></div>
+            </div>
         </div>
     </div>
 </main>
@@ -119,8 +188,24 @@
     </div>
 </div>
 
+<div class="toast-container" id="toastContainer"></div>
+
 <script src="database.js"></script>
 <script>
+    // Toast
+    function mostrarToast(mensaje, tipo = 'info') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${tipo}`;
+        toast.textContent = mensaje;
+        container.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
     let users = JSON.parse(localStorage.getItem('users')) || [];
     let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
     const userNameHeader = document.getElementById('userNameDisplay');
@@ -128,26 +213,67 @@
 
     const loginBox = document.getElementById('loginBox');
     const registerBox = document.getElementById('registerBox');
+    const verifyBox = document.getElementById('verifyBox');
     const userPanel = document.getElementById('userPanel');
     const showRegister = document.getElementById('showRegister');
     const showLogin = document.getElementById('showLogin');
     const loginForm = document.getElementById('loginForm');
     const registerForm = document.getElementById('registerForm');
+    const verifyForm = document.getElementById('verifyForm');
+    const resendCodeLink = document.getElementById('resendCodeLink');
     const logoutBtn = document.getElementById('logoutBtn');
 
-    // Funciones auxiliares para el panel de usuario
+    // --- Verificación de email (simulada, sin envío real) ---
+    let usuarioPendienteVerificacion = null;
+
+    function guardarUsuarios() {
+        localStorage.setItem('users', JSON.stringify(users));
+    }
+
+    function actualizarUsuario(userActualizado) {
+        const idx = users.findIndex(u => u.id === userActualizado.id);
+        if (idx !== -1) {
+            users[idx] = userActualizado;
+            guardarUsuarios();
+        }
+    }
+
+    function generarCodigoVerificacion() {
+        return Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    function enviarCodigoVerificacion(user) {
+        const codigo = generarCodigoVerificacion();
+        user.verificationCode = codigo;
+        user.verificationExpira = Date.now() + 10 * 60 * 1000; // 10 minutos de validez
+        actualizarUsuario(user);
+        return codigo;
+    }
+
+    function mostrarPantallaVerificacion(user) {
+        usuarioPendienteVerificacion = user;
+        loginBox.style.display = 'none';
+        registerBox.style.display = 'none';
+        userPanel.style.display = 'none';
+        verifyBox.style.display = 'block';
+        document.getElementById('verifyEmailDisplay').textContent = user.email;
+        document.getElementById('verifyError').style.display = 'none';
+        document.getElementById('verifySuccess').style.display = 'none';
+        document.getElementById('verifyCodeInput').value = '';
+        const codigo = enviarCodigoVerificacion(user);
+        document.getElementById('codeShown').textContent = codigo;
+    }
+
     function actualizarDashboard() {
         if (!currentUser) return;
         document.getElementById('userNameDisplayPanel').textContent = currentUser.name;
         document.getElementById('userEmailDisplayPanel').textContent = currentUser.email;
         
-        // Favoritos
         const favoritos = JSON.parse(localStorage.getItem('favoritos')) || [];
         document.getElementById('favoritosCount').textContent = favoritos.length;
         
-        // Configuraciones guardadas
         const configs = JSON.parse(localStorage.getItem('configuraciones')) || [];
-        const misConfigs = configs.filter(c => c.userId === currentUser.id || !c.userId); // compatibilidad con configs viejas
+        const misConfigs = configs.filter(c => c.userId === currentUser.id || !c.userId);
         document.getElementById('configuracionesCount').textContent = misConfigs.length;
         if (misConfigs.length > 0) {
             let html = '<ul>';
@@ -161,8 +287,6 @@
             document.getElementById('misConfigsLista').innerHTML = 'No tienes PCs guardadas.';
         }
         
-        // Órdenes recientes (simulado, se puede tomar del carrito o compras finalizadas)
-        // Por ahora, usamos el carrito como referencia
         const carrito = JSON.parse(localStorage.getItem('carrito')) || [];
         if (carrito.length > 0) {
             document.getElementById('ordenesRecientes').innerHTML = `<p>Tienes ${carrito.length} producto(s) en el carrito.</p><a href="carrito.html">Finalizar compra pendiente</a>`;
@@ -170,9 +294,7 @@
             document.getElementById('ordenesRecientes').innerHTML = 'No hay órdenes recientes.';
         }
         
-        // Simular gasto total (podría ser de un historial de compras)
         let totalGastado = 0;
-        // Aquí puedes implementar lógica real con un array de compras, por ahora valor aleatorio
         const gastadoStorage = localStorage.getItem(`gastado_${currentUser.id}`);
         if (gastadoStorage) totalGastado = parseInt(gastadoStorage);
         else totalGastado = Math.floor(Math.random() * 500000);
@@ -183,12 +305,14 @@
         if (currentUser) {
             loginBox.style.display = 'none';
             registerBox.style.display = 'none';
+            verifyBox.style.display = 'none';
             userPanel.style.display = 'block';
             actualizarDashboard();
             if (userNameHeader) userNameHeader.textContent = currentUser.name;
         } else {
             loginBox.style.display = 'block';
             registerBox.style.display = 'none';
+            verifyBox.style.display = 'none';
             userPanel.style.display = 'none';
             if (userNameHeader) userNameHeader.textContent = '';
         }
@@ -197,45 +321,141 @@
     function saveCurrentUser(user) { currentUser = user; localStorage.setItem('currentUser', JSON.stringify(user)); updateUI(); }
     function logout() { currentUser = null; localStorage.removeItem('currentUser'); updateUI(); }
 
-    showRegister.addEventListener('click', (e) => { e.preventDefault(); loginBox.style.display = 'none'; registerBox.style.display = 'block'; userPanel.style.display = 'none'; });
-    showLogin.addEventListener('click', (e) => { e.preventDefault(); loginBox.style.display = 'block'; registerBox.style.display = 'none'; userPanel.style.display = 'none'; });
+    showRegister.addEventListener('click', (e) => { e.preventDefault(); loginBox.style.display = 'none'; registerBox.style.display = 'block'; verifyBox.style.display = 'none'; userPanel.style.display = 'none'; });
+    showLogin.addEventListener('click', (e) => { e.preventDefault(); loginBox.style.display = 'block'; registerBox.style.display = 'none'; verifyBox.style.display = 'none'; userPanel.style.display = 'none'; });
 
     loginForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        const email = document.getElementById('loginEmail').value;
+        const email = document.getElementById('loginEmail').value.trim();
         const password = document.getElementById('loginPassword').value;
+        const loginErrorDiv = document.getElementById('loginError');
+        loginErrorDiv.style.display = 'none';
+        // Validar email
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            loginErrorDiv.textContent = 'Email inválido.';
+            loginErrorDiv.style.display = 'block';
+            return;
+        }
         const user = users.find(u => u.email === email && u.password === password);
-        if (user) { saveCurrentUser(user); window.location.href = 'login.html'; }
-        else { document.getElementById('loginError').textContent = 'Credenciales incorrectas'; document.getElementById('loginError').style.display = 'block'; }
+        if (user) {
+            if (user.verified === false) {
+                mostrarToast('Debes verificar tu email antes de ingresar', 'error');
+                mostrarPantallaVerificacion(user);
+                return;
+            }
+            saveCurrentUser(user);
+            mostrarToast('Sesión iniciada correctamente', 'success');
+            window.location.href = 'login.html';
+        } else {
+            loginErrorDiv.textContent = 'Credenciales incorrectas';
+            loginErrorDiv.style.display = 'block';
+        }
     });
 
     registerForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        const name = document.getElementById('registerName').value;
-        const email = document.getElementById('registerEmail').value;
+        const name = document.getElementById('registerName').value.trim();
+        const email = document.getElementById('registerEmail').value.trim();
         const password = document.getElementById('registerPassword').value;
         const confirm = document.getElementById('registerConfirmPassword').value;
-        if (password !== confirm) { showRegisterError('Las contraseñas no coinciden'); return; }
-        if (users.some(u => u.email === email)) { showRegisterError('Email ya registrado'); return; }
-        if (password.length < 6) { showRegisterError('Mínimo 6 caracteres'); return; }
-        const newUser = { id: Date.now(), name, email, password, createdAt: new Date().toISOString() };
+        const errDiv = document.getElementById('registerError');
+        const successDiv = document.getElementById('registerSuccess');
+        errDiv.style.display = 'none';
+        successDiv.style.display = 'none';
+
+        // Validar nombre
+        if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(name)) {
+            errDiv.textContent = 'Nombre inválido (solo letras y espacios).';
+            errDiv.style.display = 'block';
+            return;
+        }
+        // Validar email
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            errDiv.textContent = 'Email inválido.';
+            errDiv.style.display = 'block';
+            return;
+        }
+        // Contraseña segura: mínimo 6 caracteres, al menos una mayúscula, una minúscula y un número
+        if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/.test(password)) {
+            errDiv.textContent = 'La contraseña debe tener al menos 6 caracteres, incluyendo mayúscula, minúscula y número.';
+            errDiv.style.display = 'block';
+            return;
+        }
+        if (password !== confirm) {
+            errDiv.textContent = 'Las contraseñas no coinciden.';
+            errDiv.style.display = 'block';
+            return;
+        }
+        if (users.some(u => u.email === email)) {
+            errDiv.textContent = 'Email ya registrado.';
+            errDiv.style.display = 'block';
+            return;
+        }
+        const newUser = { id: Date.now(), name, email, password, verified: false, createdAt: new Date().toISOString() };
         users.push(newUser);
-        localStorage.setItem('users', JSON.stringify(users));
-        document.getElementById('registerSuccess').textContent = 'Registro exitoso. Ya puedes iniciar sesión.';
-        document.getElementById('registerSuccess').style.display = 'block';
-        setTimeout(() => { loginBox.style.display = 'block'; registerBox.style.display = 'none'; }, 1500);
+        guardarUsuarios();
+        successDiv.textContent = 'Registro exitoso. Verifica tu email para continuar.';
+        successDiv.style.display = 'block';
+        mostrarToast('Registro exitoso. Te enviamos un código de verificación.', 'success');
+        registerForm.reset();
+        setTimeout(() => { mostrarPantallaVerificacion(newUser); }, 1200);
     });
 
-    function showRegisterError(msg) { const err = document.getElementById('registerError'); err.textContent = msg; err.style.display = 'block'; }
-    logoutBtn.addEventListener('click', () => { logout(); window.location.href = 'index.html'; });
+    verifyForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const codigoIngresado = document.getElementById('verifyCodeInput').value.trim();
+        const errDiv = document.getElementById('verifyError');
+        const successDiv = document.getElementById('verifySuccess');
+        errDiv.style.display = 'none';
+        successDiv.style.display = 'none';
 
-    // Botones adicionales del dashboard
-    document.getElementById('cambiarDatosBtn')?.addEventListener('click', () => alert('Funcionalidad en desarrollo: Editar perfil.'));
-    document.getElementById('cambiarPassBtn')?.addEventListener('click', () => alert('Funcionalidad en desarrollo: Cambiar contraseña.'));
+        if (!usuarioPendienteVerificacion) return;
+
+        if (Date.now() > usuarioPendienteVerificacion.verificationExpira) {
+            errDiv.textContent = 'El código expiró. Solicita uno nuevo con "Reenviar código".';
+            errDiv.style.display = 'block';
+            return;
+        }
+        if (codigoIngresado !== usuarioPendienteVerificacion.verificationCode) {
+            errDiv.textContent = 'Código incorrecto. Revisa e intenta de nuevo.';
+            errDiv.style.display = 'block';
+            return;
+        }
+
+        usuarioPendienteVerificacion.verified = true;
+        delete usuarioPendienteVerificacion.verificationCode;
+        delete usuarioPendienteVerificacion.verificationExpira;
+        actualizarUsuario(usuarioPendienteVerificacion);
+
+        successDiv.textContent = '¡Cuenta verificada correctamente! Ya puedes iniciar sesión.';
+        successDiv.style.display = 'block';
+        mostrarToast('Email verificado con éxito', 'success');
+
+        const usuarioVerificado = usuarioPendienteVerificacion;
+        usuarioPendienteVerificacion = null;
+        setTimeout(() => {
+            verifyBox.style.display = 'none';
+            loginBox.style.display = 'block';
+            document.getElementById('loginEmail').value = usuarioVerificado.email;
+        }, 1500);
+    });
+
+    resendCodeLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!usuarioPendienteVerificacion) return;
+        const codigo = enviarCodigoVerificacion(usuarioPendienteVerificacion);
+        document.getElementById('codeShown').textContent = codigo;
+        document.getElementById('verifyError').style.display = 'none';
+        mostrarToast('Nuevo código generado', 'info');
+    });
+
+    logoutBtn.addEventListener('click', () => { logout(); mostrarToast('Sesión cerrada', 'info'); window.location.href = 'index.html'; });
+
+    document.getElementById('cambiarDatosBtn')?.addEventListener('click', () => mostrarToast('Funcionalidad en desarrollo: Editar perfil.', 'info'));
+    document.getElementById('cambiarPassBtn')?.addEventListener('click', () => mostrarToast('Funcionalidad en desarrollo: Cambiar contraseña.', 'info'));
 
     updateUI();
 
-    // Búsqueda global
     document.getElementById('globalSearch').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') window.location.href = `productos-lista.html?buscar=${encodeURIComponent(e.target.value)}`;
     });
