@@ -4,6 +4,33 @@
     <meta charset="UTF-8">
     <title>Cholo Krause: Electronic arts. - Favoritos</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            min-width: 200px;
+            max-width: 350px;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.success { background-color: #28a745; }
+        .toast.error { background-color: #dc3545; }
+        .toast.info { background-color: #17a2b8; }
+    </style>
 </head>
 <body>
 <header>
@@ -53,8 +80,23 @@
     </div>
 </div>
 
+<div class="toast-container" id="toastContainer"></div>
+
 <script src="database.js"></script>
 <script>
+    function mostrarToast(mensaje, tipo = 'info') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${tipo}`;
+        toast.textContent = mensaje;
+        container.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
     let favoritos = JSON.parse(localStorage.getItem('favoritos')) || [];
 
     function guardarFavoritos() {
@@ -66,16 +108,28 @@
         if (confirm('¿Quitar de favoritos?')) {
             favoritos.splice(index, 1);
             guardarFavoritos();
+            mostrarToast('Producto quitado de favoritos', 'info');
         }
     }
 
     function agregarAlCarrito(producto) {
+        if (producto.stock <= 0) {
+            mostrarToast('Producto sin stock', 'error');
+            return;
+        }
         let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
         const existente = carrito.find(i => i.id === producto.id);
-        if (existente) existente.cantidad = (existente.cantidad || 1) + 1;
-        else carrito.push({ ...producto, cantidad: 1 });
+        if (existente) {
+            if (existente.cantidad >= producto.stock) {
+                mostrarToast('No hay más stock disponible', 'error');
+                return;
+            }
+            existente.cantidad += 1;
+        } else {
+            carrito.push({ ...producto, cantidad: 1 });
+        }
         localStorage.setItem('carrito', JSON.stringify(carrito));
-        alert(`${producto.nombre} agregado al carrito`);
+        mostrarToast(`${producto.nombre} agregado al carrito`, 'success');
     }
 
     function renderizarFavoritos() {
@@ -94,6 +148,7 @@
                         <div class="product-category">${item.marca}</div>
                         <div class="product-price">$${item.precio.toLocaleString()}</div>
                         <div class="product-description">${item.descripcion}</div>
+                        <div><small>Stock: ${item.stock || 0}</small></div>
                     </div>
                     <div class="favorito-acciones" style="display:flex; gap:8px; padding:1rem;">
                         <button class="btn-agregar-carrito" onclick="agregarAlCarrito(favoritos[${index}])">Agregar al carrito</button>
