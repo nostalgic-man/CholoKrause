@@ -2,8 +2,38 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Cholo Krause: Electronic arts. - Contacto</title>
+    <title>Cholo Krause: Electronic arts. - Carrito de compras</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            min-width: 200px;
+            max-width: 350px;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.success { background-color: #28a745; }
+        .toast.error { background-color: #dc3545; }
+        .toast.info { background-color: #17a2b8; }
+        .carrito-tabla td { vertical-align: middle; }
+        .stock-info { font-size: 0.8rem; color: #6c757d; }
+        .sin-stock { color: #dc3545; font-weight: bold; }
+    </style>
 </head>
 <body>
 <header>
@@ -29,23 +59,12 @@
 
 <main>
     <div class="main-container">
-        <h1>Contacto</h1>
-        <div class="info">
-            <p>Email: contacto@cholokrause.com</p>
-            <p>Teléfono: (011) 1234-5678</p>
-            <p>Dirección: Av. Paseo Colón 650, Buenos Aires, Argentina</p>
-            <p>Horario: Lunes a Viernes de 7:45 a 17:45</p>
-            <br>
-            <p>¿Tienes alguna consulta? Completa el siguiente formulario:</p>
-            <form action="#" method="post">
-                <label for="nombre">Nombre:</label><br>
-                <input type="text" id="nombre" name="nombre" required><br><br>
-                <label for="email">Email:</label><br>
-                <input type="email" id="email" name="email" required><br><br>
-                <label for="mensaje">Mensaje:</label><br>
-                <textarea id="mensaje" name="mensaje" rows="4" cols="40" required></textarea><br><br>
-                <input type="submit" value="Enviar consulta">
-            </form>
+        <div class="carrito-container">
+            <div class="carrito-header">
+                <h1>Tu Carrito de Compras</h1>
+                <p>Revisa los productos seleccionados y completa tu pedido</p>
+            </div>
+            <div id="carritoContent" class="carrito-content"></div>
         </div>
     </div>
 </main>
@@ -64,9 +83,269 @@
     </div>
 </div>
 
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="database.js"></script>
 <script>
+    // Toast
+    function mostrarToast(mensaje, tipo = 'info') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${tipo}`;
+        toast.textContent = mensaje;
+        container.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
+    let descuentoAplicado = 0;
+    let codigoCupon = '';
+
+    function guardarCarrito() {
+        localStorage.setItem('carrito', JSON.stringify(carrito));
+        renderizarCarrito();
+    }
+
+    function actualizarCantidad(idx, nueva) {
+        const item = carrito[idx];
+        if (!item) return;
+        const producto = getProductById(item.id);
+        if (!producto) return;
+        if (nueva < 1) {
+            eliminarProducto(idx);
+            return;
+        }
+        if (nueva > producto.stock) {
+            mostrarToast(`Stock insuficiente. Disponible: ${producto.stock}`, 'error');
+            return;
+        }
+        carrito[idx].cantidad = Math.min(99, nueva);
+        guardarCarrito();
+    }
+
+    function eliminarProducto(idx) {
+        if (confirm('¿Eliminar este producto del carrito?')) {
+            carrito.splice(idx, 1);
+            guardarCarrito();
+            mostrarToast('Producto eliminado', 'info');
+        }
+    }
+
+    function vaciarCarrito() {
+        if (confirm('¿Vaciar todo el carrito?')) {
+            carrito = [];
+            guardarCarrito();
+            mostrarToast('Carrito vaciado', 'info');
+        }
+    }
+
+    function calcularSubtotal() {
+        return carrito.reduce((total, item) => total + (item.precio * (item.cantidad || 1)), 0);
+    }
+
+    function calcularEnvio() {
+        const subtotal = calcularSubtotal();
+        if (subtotal === 0) return 0;
+        if (subtotal > 150000) return 0;
+        return 5000;
+    }
+
+    function calcularTotal() {
+        const subtotal = calcularSubtotal();
+        const envio = calcularEnvio();
+        const descuentoValor = (subtotal * descuentoAplicado) / 100;
+        return subtotal + envio - descuentoValor;
+    }
+
+    function aplicarCupon() {
+        const cuponInput = document.getElementById('cuponInput');
+        const codigo = cuponInput.value.trim().toUpperCase();
+        if (codigo === 'BIENVENIDO10') {
+            descuentoAplicado = 10;
+            codigoCupon = codigo;
+            mostrarToast('Cupón aplicado: 10% de descuento', 'success');
+        } else if (codigo === 'KRAUSE5') {
+            descuentoAplicado = 5;
+            codigoCupon = codigo;
+            mostrarToast('Cupón aplicado: 5% de descuento', 'success');
+        } else if (codigo !== '') {
+            mostrarToast('Cupón no válido', 'error');
+            return;
+        }
+        if (codigo === '') {
+            descuentoAplicado = 0;
+            codigoCupon = '';
+            mostrarToast('Cupón eliminado', 'info');
+        }
+        renderizarCarrito();
+        cuponInput.value = '';
+    }
+
+    function obtenerCategoriaPorId(id) {
+        for (let cat in productosDB) {
+            if (productosDB[cat].some(p => p.id === id)) return cat;
+        }
+        return 'procesadores';
+    }
+
+    function agregarAlCarrito(producto) {
+        if (producto.stock <= 0) {
+            mostrarToast('Producto sin stock', 'error');
+            return;
+        }
+        const existente = carrito.find(item => item.id === producto.id);
+        if (existente) {
+            if (existente.cantidad >= producto.stock) {
+                mostrarToast('No hay más stock disponible', 'error');
+                return;
+            }
+            existente.cantidad += 1;
+        } else {
+            carrito.push({ ...producto, cantidad: 1 });
+        }
+        guardarCarrito();
+        mostrarToast(`${producto.nombre} agregado al carrito`, 'success');
+    }
+
+    function finalizarCompra() {
+        if (carrito.length === 0) {
+            mostrarToast('Tu carrito está vacío. Agrega productos antes de finalizar.', 'error');
+            return;
+        }
+        // Verificar stock de todos los items antes de finalizar
+        for (let item of carrito) {
+            const prod = getProductById(item.id);
+            if (!prod || item.cantidad > prod.stock) {
+                mostrarToast(`Stock insuficiente para ${item.nombre}. Disponible: ${prod ? prod.stock : 0}`, 'error');
+                return;
+            }
+        }
+        const total = calcularTotal();
+        // Simular compra: descontar stock (en una app real se haría en backend)
+        carrito.forEach(item => {
+            const prod = getProductById(item.id);
+            if (prod) prod.stock -= item.cantidad;
+        });
+        // Actualizar database (simulado, en localstorage)
+        // En una implementación real se enviaría al servidor.
+        // Aquí guardamos el nuevo stock en localStorage para persistencia simulada.
+        localStorage.setItem('productosDB', JSON.stringify(productosDB));
+        mostrarToast(`¡Compra finalizada! Total: $${total.toLocaleString()}. Gracias por tu compra.`, 'success');
+        carrito = [];
+        guardarCarrito();
+    }
+
+    function renderizarCarrito() {
+        const container = document.getElementById('carritoContent');
+        const subtotal = calcularSubtotal();
+        const envio = calcularEnvio();
+        const descuentoValor = (subtotal * descuentoAplicado) / 100;
+        const total = calcularTotal();
+
+        if (carrito.length === 0) {
+            container.innerHTML = `
+                <div class="carrito-vacio">
+                    <div class="icono-carrito">🛒</div>
+                    <h3>Tu carrito está vacío</h3>
+                    <p>Parece que aún no has agregado productos. ¡Explora nuestro catálogo!</p>
+                    <a href="productos.html" class="btn">Explorar productos</a>
+                </div>
+            `;
+            return;
+        }
+
+        let productosHtml = `
+            <div class="carrito-tabla-wrapper">
+                <table class="carrito-tabla">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Precio unitario</th>
+                            <th>Cantidad</th>
+                            <th>Subtotal</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        carrito.forEach((item, idx) => {
+            const producto = getProductById(item.id);
+            const cantidad = item.cantidad || 1;
+            const subtotalItem = item.precio * cantidad;
+            const stockDisponible = producto ? producto.stock : 0;
+            productosHtml += `
+                <tr>
+                    <td data-label="Producto">
+                        <div class="carrito-producto">
+                            <div class="carrito-producto-info">
+                                <h4>${item.nombre}</h4>
+                                <p>${item.marca || ''} ${item.socket ? `- ${item.socket}` : ''}</p>
+                                <span class="stock-info">Stock: ${stockDisponible}</span>
+                                ${cantidad > stockDisponible ? '<span class="sin-stock"> (Stock insuficiente)</span>' : ''}
+                            </div>
+                        </div>
+                    </td>
+                    <td data-label="Precio unitario">$${item.precio.toLocaleString()}</td>
+                    <td data-label="Cantidad">
+                        <div class="cantidad-control">
+                            <button class="cantidad-btn" onclick="actualizarCantidad(${idx}, ${cantidad - 1})">-</button>
+                            <span class="cantidad-num">${cantidad}</span>
+                            <button class="cantidad-btn" onclick="actualizarCantidad(${idx}, ${cantidad + 1})">+</button>
+                        </div>
+                    </td>
+                    <td data-label="Subtotal">$${subtotalItem.toLocaleString()}</td>
+                    <td data-label="Eliminar"><button class="btn-eliminar" onclick="eliminarProducto(${idx})">Eliminar</button></td>
+                </tr>
+            `;
+        });
+        productosHtml += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        const resumenHtml = `
+            <div class="carrito-resumen">
+                <div class="resumen-detalle">
+                    <div class="resumen-fila"><span>Subtotal</span><span>$${subtotal.toLocaleString()}</span></div>
+                    <div class="resumen-fila"><span>Envío</span><span>${envio === 0 ? 'Gratis' : `$${envio.toLocaleString()}`}</span></div>
+                    ${descuentoAplicado > 0 ? `<div class="resumen-fila"><span>Descuento (${descuentoAplicado}%)</span><span> -$${descuentoValor.toLocaleString()}</span></div>` : ''}
+                    <div class="resumen-fila total"><span>Total</span><span>$${total.toLocaleString()}</span></div>
+                </div>
+                <div class="resumen-acciones">
+                    <div class="cupon-section">
+                        <input type="text" id="cuponInput" placeholder="Código de cupón" class="cupon-input">
+                        <button class="btn-cupon" onclick="aplicarCupon()">Aplicar</button>
+                    </div>
+                    <div class="botones-accion">
+                        <button class="btn-vaciar" onclick="vaciarCarrito()">Vaciar carrito</button>
+                        <button class="btn-finalizar" onclick="finalizarCompra()">Finalizar compra</button>
+                    </div>
+                    <a href="productos.html" class="seguir-comprando">Seguir comprando</a>
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = productosHtml + resumenHtml;
+    }
+
+    // Exponer funciones globales
+    window.actualizarCantidad = actualizarCantidad;
+    window.eliminarProducto = eliminarProducto;
+    window.vaciarCarrito = vaciarCarrito;
+    window.finalizarCompra = finalizarCompra;
+    window.aplicarCupon = aplicarCupon;
+    window.agregarAlCarrito = agregarAlCarrito;
+
+    renderizarCarrito();
+
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-    if (currentUser) document.getElementById('userNameDisplay').textContent = currentUser.name;
+    const userNameSpan = document.getElementById('userNameDisplay');
+    if (currentUser) userNameSpan.textContent = currentUser.name;
 
     document.getElementById('globalSearch').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') window.location.href = `productos-lista.html?buscar=${encodeURIComponent(e.target.value)}`;
