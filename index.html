@@ -1,9 +1,36 @@
-﻿﻿<!DOCTYPE html>
+﻿﻿﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <title>Cholo Krause: Electronic arts.</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            min-width: 200px;
+            max-width: 350px;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.success { background-color: #28a745; }
+        .toast.error { background-color: #dc3545; }
+        .toast.info { background-color: #17a2b8; }
+    </style>
 </head>
 <body>
 <header>
@@ -60,13 +87,27 @@
     </div>
 </div>
 
+<div class="toast-container" id="toastContainer"></div>
+
 <script src="database.js"></script>
 <script>
+    function mostrarToast(mensaje, tipo = 'info') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${tipo}`;
+        toast.textContent = mensaje;
+        container.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const userNameSpan = document.getElementById('userNameDisplay');
     if (currentUser && userNameSpan) userNameSpan.textContent = currentUser.name;
 
-    // Slider con productos populares (primeros 5)
     const populares = getAllProducts().slice(0,5);
     const sliderDiv = document.getElementById('slider');
     let slideIndex = 0;
@@ -104,12 +145,10 @@
 
     renderSlider();
 
-    // Búsqueda global
     document.getElementById('globalSearch').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') window.location.href = `productos-lista.html?buscar=${encodeURIComponent(e.target.value)}`;
     });
 
-    // Botón flotante
     const floatingButton = document.querySelector('.floating-button');
     const floatingMenu = document.querySelector('.floating-menu');
     if (floatingButton && floatingMenu) {
