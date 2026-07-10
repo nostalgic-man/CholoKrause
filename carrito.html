@@ -4,6 +4,36 @@
     <meta charset="UTF-8">
     <title>Cholo Krause: Electronic arts. - Carrito de compras</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            min-width: 200px;
+            max-width: 350px;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.success { background-color: #28a745; }
+        .toast.error { background-color: #dc3545; }
+        .toast.info { background-color: #17a2b8; }
+        .carrito-tabla td { vertical-align: middle; }
+        .stock-info { font-size: 0.8rem; color: #6c757d; }
+        .sin-stock { color: #dc3545; font-weight: bold; }
+    </style>
 </head>
 <body>
 <header>
@@ -53,30 +83,55 @@
     </div>
 </div>
 
+<div class="toast-container" id="toastContainer"></div>
+
 <script src="database.js"></script>
 <script>
+    // Toast
+    function mostrarToast(mensaje, tipo = 'info') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${tipo}`;
+        toast.textContent = mensaje;
+        container.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
     let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
     let descuentoAplicado = 0;
     let codigoCupon = '';
 
-    // Funciones auxiliares
     function guardarCarrito() {
         localStorage.setItem('carrito', JSON.stringify(carrito));
         renderizarCarrito();
     }
 
     function actualizarCantidad(idx, nueva) {
-        if (nueva < 1) eliminarProducto(idx);
-        else {
-            carrito[idx].cantidad = Math.min(99, nueva);
-            guardarCarrito();
+        const item = carrito[idx];
+        if (!item) return;
+        const producto = getProductById(item.id);
+        if (!producto) return;
+        if (nueva < 1) {
+            eliminarProducto(idx);
+            return;
         }
+        if (nueva > producto.stock) {
+            mostrarToast(`Stock insuficiente. Disponible: ${producto.stock}`, 'error');
+            return;
+        }
+        carrito[idx].cantidad = Math.min(99, nueva);
+        guardarCarrito();
     }
 
     function eliminarProducto(idx) {
         if (confirm('¿Eliminar este producto del carrito?')) {
             carrito.splice(idx, 1);
             guardarCarrito();
+            mostrarToast('Producto eliminado', 'info');
         }
     }
 
@@ -84,6 +139,7 @@
         if (confirm('¿Vaciar todo el carrito?')) {
             carrito = [];
             guardarCarrito();
+            mostrarToast('Carrito vaciado', 'info');
         }
     }
 
@@ -94,7 +150,7 @@
     function calcularEnvio() {
         const subtotal = calcularSubtotal();
         if (subtotal === 0) return 0;
-        if (subtotal > 150000) return 0; // Envío gratis para compras mayores a $150,000
+        if (subtotal > 150000) return 0;
         return 5000;
     }
 
@@ -111,70 +167,76 @@
         if (codigo === 'BIENVENIDO10') {
             descuentoAplicado = 10;
             codigoCupon = codigo;
-            alert('Cupón aplicado: 10% de descuento');
+            mostrarToast('Cupón aplicado: 10% de descuento', 'success');
         } else if (codigo === 'KRAUSE5') {
             descuentoAplicado = 5;
             codigoCupon = codigo;
-            alert('Cupón aplicado: 5% de descuento');
+            mostrarToast('Cupón aplicado: 5% de descuento', 'success');
         } else if (codigo !== '') {
-            alert('Cupón no válido');
+            mostrarToast('Cupón no válido', 'error');
             return;
         }
         if (codigo === '') {
             descuentoAplicado = 0;
             codigoCupon = '';
-            alert('Cupón eliminado');
+            mostrarToast('Cupón eliminado', 'info');
         }
         renderizarCarrito();
         cuponInput.value = '';
     }
 
-    // Sugerencias de productos (basadas en productos del carrito)
-    function obtenerSugerencias() {
-        if (carrito.length === 0) return [];
-        // Obtener categorías de los productos en carrito
-        const categoriasEnCarrito = new Set();
-        carrito.forEach(item => {
-            for (let cat in productosDB) {
-                if (productosDB[cat].some(p => p.id === item.id)) {
-                    categoriasEnCarrito.add(cat);
-                    break;
-                }
-            }
-        });
-        // Sugerir productos de esas categorías que no estén en el carrito
-        const idsEnCarrito = new Set(carrito.map(item => item.id));
-        let sugerencias = [];
-        for (let cat of categoriasEnCarrito) {
-            const productosCat = productosDB[cat] || [];
-            sugerencias.push(...productosCat.filter(p => !idsEnCarrito.has(p.id)));
+    function obtenerCategoriaPorId(id) {
+        for (let cat in productosDB) {
+            if (productosDB[cat].some(p => p.id === id)) return cat;
         }
-        // Limitar a 4 productos únicos (eliminar duplicados por id)
-        sugerencias = sugerencias.filter((p, index, self) => self.findIndex(p2 => p2.id === p.id) === index);
-        return sugerencias.slice(0, 4);
+        return 'procesadores';
     }
 
     function agregarAlCarrito(producto) {
+        if (producto.stock <= 0) {
+            mostrarToast('Producto sin stock', 'error');
+            return;
+        }
         const existente = carrito.find(item => item.id === producto.id);
         if (existente) {
-            existente.cantidad = (existente.cantidad || 1) + 1;
+            if (existente.cantidad >= producto.stock) {
+                mostrarToast('No hay más stock disponible', 'error');
+                return;
+            }
+            existente.cantidad += 1;
         } else {
             carrito.push({ ...producto, cantidad: 1 });
         }
         guardarCarrito();
-        alert(`${producto.nombre} agregado al carrito`);
+        mostrarToast(`${producto.nombre} agregado al carrito`, 'success');
     }
 
     function finalizarCompra() {
         if (carrito.length === 0) {
-            alert('Tu carrito está vacío. Agrega productos antes de finalizar.');
+            mostrarToast('Tu carrito está vacío. Agrega productos antes de finalizar.', 'error');
             return;
         }
+        // Verificar stock de todos los items antes de finalizar
+        for (let item of carrito) {
+            const prod = getProductById(item.id);
+            if (!prod || item.cantidad > prod.stock) {
+                mostrarToast(`Stock insuficiente para ${item.nombre}. Disponible: ${prod ? prod.stock : 0}`, 'error');
+                return;
+            }
+        }
         const total = calcularTotal();
-        alert(`¡Compra finalizada!\nTotal: $${total.toLocaleString()}\nGracias por tu compra. Te contactaremos para el envío.`);
+        // Simular compra: descontar stock (en una app real se haría en backend)
+        carrito.forEach(item => {
+            const prod = getProductById(item.id);
+            if (prod) prod.stock -= item.cantidad;
+        });
+        // Actualizar database (simulado, en localstorage)
+        // En una implementación real se enviaría al servidor.
+        // Aquí guardamos el nuevo stock en localStorage para persistencia simulada.
+        localStorage.setItem('productosDB', JSON.stringify(productosDB));
+        mostrarToast(`¡Compra finalizada! Total: $${total.toLocaleString()}. Gracias por tu compra.`, 'success');
         carrito = [];
         guardarCarrito();
-        // Opcional: redirigir a página de gracias
     }
 
     function renderizarCarrito() {
@@ -192,17 +254,10 @@
                     <p>Parece que aún no has agregado productos. ¡Explora nuestro catálogo!</p>
                     <a href="productos.html" class="btn">Explorar productos</a>
                 </div>
-                <div class="productos-sugeridos">
-                    <h4>Productos destacados</h4>
-                    <div class="sugerencias-grid" id="sugerenciasContainer"></div>
-                </div>
             `;
-            // Mostrar sugerencias incluso con carrito vacío
-            mostrarSugerenciasGenericas();
             return;
         }
 
-        // Tabla de productos
         let productosHtml = `
             <div class="carrito-tabla-wrapper">
                 <table class="carrito-tabla">
@@ -218,8 +273,10 @@
                     <tbody>
         `;
         carrito.forEach((item, idx) => {
+            const producto = getProductById(item.id);
             const cantidad = item.cantidad || 1;
             const subtotalItem = item.precio * cantidad;
+            const stockDisponible = producto ? producto.stock : 0;
             productosHtml += `
                 <tr>
                     <td data-label="Producto">
@@ -227,6 +284,8 @@
                             <div class="carrito-producto-info">
                                 <h4>${item.nombre}</h4>
                                 <p>${item.marca || ''} ${item.socket ? `- ${item.socket}` : ''}</p>
+                                <span class="stock-info">Stock: ${stockDisponible}</span>
+                                ${cantidad > stockDisponible ? '<span class="sin-stock"> (Stock insuficiente)</span>' : ''}
                             </div>
                         </div>
                     </td>
@@ -249,7 +308,6 @@
             </div>
         `;
 
-        // Resumen del pedido
         const resumenHtml = `
             <div class="carrito-resumen">
                 <div class="resumen-detalle">
@@ -272,56 +330,10 @@
             </div>
         `;
 
-        // Sugerencias de productos relacionados
-        const sugerencias = obtenerSugerencias();
-        let sugerenciasHtml = '';
-        if (sugerencias.length > 0) {
-            sugerenciasHtml = `
-                <div class="productos-sugeridos">
-                    <h4>Quizás también te interese</h4>
-                    <div class="sugerencias-grid">
-                        ${sugerencias.map(p => `
-                            <div class="sugerencia-card" onclick="agregarAlCarrito(productosDB['${obtenerCategoriaPorId(p.id)}'].find(x=>x.id===${p.id}))">
-                                <img src="imagenes/${p.imagen}" alt="${p.nombre}" onerror="this.src='imagenes/placeholder.jpg'">
-                                <div class="sugerencia-info">
-                                    <h5>${p.nombre}</h5>
-                                    <p>$${p.precio.toLocaleString()}</p>
-                                    <button class="btn-agregar" onclick="event.stopPropagation(); agregarAlCarrito(productosDB['${obtenerCategoriaPorId(p.id)}'].find(x=>x.id===${p.id}))">Agregar</button>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        container.innerHTML = productosHtml + resumenHtml + sugerenciasHtml;
+        container.innerHTML = productosHtml + resumenHtml;
     }
 
-    function obtenerCategoriaPorId(id) {
-        for (let cat in productosDB) {
-            if (productosDB[cat].some(p => p.id === id)) return cat;
-        }
-        return 'procesadores';
-    }
-
-    function mostrarSugerenciasGenericas() {
-        const container = document.getElementById('sugerenciasContainer');
-        if (!container) return;
-        const productosDestacados = getAllProducts().slice(0, 4);
-        container.innerHTML = productosDestacados.map(p => `
-            <div class="sugerencia-card" onclick="agregarAlCarrito(productosDB['${obtenerCategoriaPorId(p.id)}'].find(x=>x.id===${p.id}))">
-                <img src="imagenes/${p.imagen}" alt="${p.nombre}" onerror="this.src='imagenes/placeholder.jpg'">
-                <div class="sugerencia-info">
-                    <h5>${p.nombre}</h5>
-                    <p>$${p.precio.toLocaleString()}</p>
-                    <button class="btn-agregar" onclick="event.stopPropagation(); agregarAlCarrito(productosDB['${obtenerCategoriaPorId(p.id)}'].find(x=>x.id===${p.id}))">Agregar</button>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    // Exponer funciones globales para los onclick
+    // Exponer funciones globales
     window.actualizarCantidad = actualizarCantidad;
     window.eliminarProducto = eliminarProducto;
     window.vaciarCarrito = vaciarCarrito;
@@ -329,20 +341,16 @@
     window.aplicarCupon = aplicarCupon;
     window.agregarAlCarrito = agregarAlCarrito;
 
-    // Inicializar
     renderizarCarrito();
 
-    // Mostrar nombre de usuario si está logueado
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const userNameSpan = document.getElementById('userNameDisplay');
     if (currentUser) userNameSpan.textContent = currentUser.name;
 
-    // Búsqueda global
     document.getElementById('globalSearch').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') window.location.href = `productos-lista.html?buscar=${encodeURIComponent(e.target.value)}`;
     });
 
-    // Botón flotante
     const floatingButton = document.querySelector('.floating-button');
     const floatingMenu = document.querySelector('.floating-menu');
     if (floatingButton && floatingMenu) {
