@@ -4,6 +4,36 @@
     <meta charset="UTF-8">
     <title>Cholo Krause: Electronic arts. - Detalle de producto</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            min-width: 200px;
+            max-width: 350px;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.success { background-color: #28a745; }
+        .toast.error { background-color: #dc3545; }
+        .toast.info { background-color: #17a2b8; }
+        .stock-disponible { font-weight: bold; }
+        .stock-bajo { color: #dc3545; }
+        .stock-alto { color: #28a745; }
+    </style>
 </head>
 <body>
 <header>
@@ -53,9 +83,23 @@
     </div>
 </div>
 
+<div class="toast-container" id="toastContainer"></div>
+
 <script src="database.js"></script>
 <script>
-    // Obtener producto por ID
+    function mostrarToast(mensaje, tipo = 'info') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${tipo}`;
+        toast.textContent = mensaje;
+        container.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
     const urlParams = new URLSearchParams(window.location.search);
     const productId = parseInt(urlParams.get('id'));
     const producto = getProductById(productId);
@@ -63,7 +107,6 @@
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     if (currentUser) userNameSpan.textContent = currentUser.name;
 
-    // Para el breadcrumb, determinar categoría (búsqueda en productosDB)
     let categoriaEncontrada = '';
     for (let cat in productosDB) {
         if (productosDB[cat].some(p => p.id === productId)) {
@@ -97,20 +140,15 @@
             </div>
         `;
     } else {
-        // Generar especificaciones en formato lista bonita
         let specsHtml = '<div class="specs-grid">';
-        // Lista de propiedades a mostrar (excluir las que no interesan)
-        const excludeKeys = ['id', 'nombre', 'precio', 'marca', 'descripcion', 'imagen'];
+        const excludeKeys = ['id', 'nombre', 'precio', 'marca', 'descripcion', 'imagen', 'stock'];
         for (let [key, value] of Object.entries(producto)) {
             if (excludeKeys.includes(key)) continue;
             if (value === undefined || value === null || value === '') continue;
             let displayValue = value;
             if (typeof value === 'boolean') displayValue = value ? 'Sí' : 'No';
             if (Array.isArray(value)) displayValue = value.join(', ');
-            // Formatear clave para mostrar bonito
-            let displayKey = key
-                .replace(/_/g, ' ')
-                .replace(/\b\w/g, l => l.toUpperCase());
+            let displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
             specsHtml += `
                 <div class="spec-item">
                     <div class="spec-label">${displayKey}</div>
@@ -120,7 +158,10 @@
         }
         specsHtml += '</div>';
 
-        // Construir página de detalle
+        const stock = producto.stock || 0;
+        const stockClass = stock === 0 ? 'stock-bajo' : (stock < 5 ? 'stock-bajo' : 'stock-alto');
+        const stockText = stock === 0 ? 'Sin stock' : `${stock} unidades disponibles`;
+
         const detailHtml = `
             <div class="product-detail">
                 <div class="product-detail-image">
@@ -131,17 +172,18 @@
                     <div class="product-detail-brand">${producto.marca}</div>
                     <div class="product-detail-price">$${producto.precio.toLocaleString()} <small>IVA incluido</small></div>
                     <div class="product-detail-description">${producto.descripcion}</div>
+                    <div class="stock-disponible ${stockClass}">${stockText}</div>
                     <div class="quantity-selector">
                         <label for="cantidad">Cantidad:</label>
                         <div class="quantity-control">
                             <button class="quantity-btn" id="minusBtn">-</button>
-                            <input type="number" id="cantidad" value="1" min="1" max="10">
+                            <input type="number" id="cantidad" value="1" min="1" max="${stock > 0 ? stock : 1}">
                             <button class="quantity-btn" id="plusBtn">+</button>
                         </div>
                     </div>
                     <div class="product-detail-buttons">
-                        <button class="btn btn-primary" id="comprarAhoraBtn">Comprar ahora</button>
-                        <button class="btn btn-secondary" id="agregarCarritoBtn">Agregar al carrito</button>
+                        <button class="btn btn-primary" id="comprarAhoraBtn" ${stock === 0 ? 'disabled' : ''}>Comprar ahora</button>
+                        <button class="btn btn-secondary" id="agregarCarritoBtn" ${stock === 0 ? 'disabled' : ''}>Agregar al carrito</button>
                         <button class="btn btn-outline" id="favoritoBtn">Favorito</button>
                     </div>
                 </div>
@@ -153,32 +195,48 @@
         `;
         document.getElementById('detailContainer').innerHTML = detailHtml;
 
-        // Lógica de cantidad
         const cantidadInput = document.getElementById('cantidad');
+        const maxStock = stock > 0 ? stock : 1;
         document.getElementById('minusBtn').addEventListener('click', () => {
             let val = parseInt(cantidadInput.value);
             if (val > 1) cantidadInput.value = val - 1;
         });
         document.getElementById('plusBtn').addEventListener('click', () => {
             let val = parseInt(cantidadInput.value);
-            if (val < 10) cantidadInput.value = val + 1;
+            if (val < maxStock) cantidadInput.value = val + 1;
+            else mostrarToast('No hay más stock disponible', 'error');
         });
 
-        // Botones de acción
         function agregarAlCarrito() {
+            if (stock === 0) {
+                mostrarToast('Producto sin stock', 'error');
+                return;
+            }
             const cantidad = parseInt(cantidadInput.value);
+            if (cantidad > stock) {
+                mostrarToast(`Stock insuficiente. Disponible: ${stock}`, 'error');
+                return;
+            }
             let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
             const existente = carrito.find(item => item.id === producto.id);
             if (existente) {
-                existente.cantidad = (existente.cantidad || 1) + cantidad;
+                if (existente.cantidad + cantidad > stock) {
+                    mostrarToast(`No hay suficiente stock para agregar más. Disponible: ${stock}`, 'error');
+                    return;
+                }
+                existente.cantidad += cantidad;
             } else {
                 carrito.push({ ...producto, cantidad: cantidad });
             }
             localStorage.setItem('carrito', JSON.stringify(carrito));
-            alert(`${producto.nombre} agregado al carrito (x${cantidad})`);
+            mostrarToast(`${producto.nombre} agregado al carrito (x${cantidad})`, 'success');
         }
 
         function comprarAhora() {
+            if (stock === 0) {
+                mostrarToast('Producto sin stock', 'error');
+                return;
+            }
             agregarAlCarrito();
             window.location.href = 'carrito.html';
         }
@@ -188,9 +246,9 @@
             if (!favoritos.find(f => f.id === producto.id)) {
                 favoritos.push(producto);
                 localStorage.setItem('favoritos', JSON.stringify(favoritos));
-                alert(`${producto.nombre} agregado a favoritos`);
+                mostrarToast(`${producto.nombre} agregado a favoritos`, 'success');
             } else {
-                alert('Este producto ya está en favoritos');
+                mostrarToast('Este producto ya está en favoritos', 'info');
             }
         }
 
@@ -199,26 +257,17 @@
         document.getElementById('favoritoBtn').addEventListener('click', agregarAFavoritos);
     }
 
-    // Búsqueda global
     document.getElementById('globalSearch').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             window.location.href = `productos-lista.html?buscar=${encodeURIComponent(e.target.value)}`;
         }
     });
 
-    // Botón flotante
     const floatingButton = document.querySelector('.floating-button');
     const floatingMenu = document.querySelector('.floating-menu');
     if (floatingButton && floatingMenu) {
-        floatingButton.addEventListener('click', (e) => {
-            e.stopPropagation();
-            floatingMenu.classList.toggle('show');
-        });
-        document.addEventListener('click', (e) => {
-            if (!floatingButton.contains(e.target) && !floatingMenu.contains(e.target)) {
-                floatingMenu.classList.remove('show');
-            }
-        });
+        floatingButton.addEventListener('click', (e) => { e.stopPropagation(); floatingMenu.classList.toggle('show'); });
+        document.addEventListener('click', (e) => { if (!floatingButton.contains(e.target) && !floatingMenu.contains(e.target)) floatingMenu.classList.remove('show'); });
     }
 </script>
 </body>
