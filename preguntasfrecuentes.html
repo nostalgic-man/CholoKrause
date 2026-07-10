@@ -4,6 +4,38 @@
     <meta charset="UTF-8">
     <title>Cholo Krause: Electronic arts. - Preguntas frecuentes</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            min-width: 200px;
+            max-width: 350px;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.success { background-color: #28a745; }
+        .toast.error { background-color: #dc3545; }
+        .toast.info { background-color: #17a2b8; }
+        .faq-answer { display: none; padding: 10px 0; }
+        .faq-answer.show { display: block; }
+        .faq-item { border-bottom: 1px solid #ddd; padding: 10px 0; }
+        .faq-question { cursor: pointer; font-weight: 500; display: flex; justify-content: space-between; }
+        .toggle-icon { font-size: 1.2rem; }
+    </style>
 </head>
 <body>
 <header>
@@ -32,10 +64,22 @@
         <h1>Preguntas Frecuentes</h1>
         <div class="info"><p>Encuentra respuestas a las preguntas más comunes sobre cómo comprar y armar tu PC.</p></div>
         <div class="faq-section">
-            <div class="faq-item"><div class="faq-question">¿Cómo realizo una compra? <span class="toggle-icon">+</span></div><div class="faq-answer">Es muy sencillo: navega, agrega al carrito, finaliza compra y completa tus datos.</div></div>
-            <div class="faq-item"><div class="faq-question">¿Cuánto cuesta el envío? <span class="toggle-icon">+</span></div><div class="faq-answer">El envío es gratis en compras mayores a $150,000 en CABA y GBA, y $200,000 al interior.</div></div>
-            <div class="faq-item"><div class="faq-question">¿Los productos tienen garantía? <span class="toggle-icon">+</span></div><div class="faq-answer">Sí, todos tienen garantía oficial de fábrica de 12 a 36 meses según el producto.</div></div>
-            <div class="faq-item"><div class="faq-question">¿Puedo armar mi PC con sus componentes? <span class="toggle-icon">+</span></div><div class="faq-answer">Sí, usa nuestro configurador "Arma tu PC" para elegir componentes compatibles.</div></div>
+            <div class="faq-item">
+                <div class="faq-question">¿Cómo realizo una compra? <span class="toggle-icon">+</span></div>
+                <div class="faq-answer">Es muy sencillo: navega, agrega al carrito, finaliza compra y completa tus datos.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">¿Cuánto cuesta el envío? <span class="toggle-icon">+</span></div>
+                <div class="faq-answer">El envío es gratis en compras mayores a $150,000 en CABA y GBA, y $200,000 al interior.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">¿Los productos tienen garantía? <span class="toggle-icon">+</span></div>
+                <div class="faq-answer">Sí, todos tienen garantía oficial de fábrica de 12 a 36 meses según el producto.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">¿Puedo armar mi PC con sus componentes? <span class="toggle-icon">+</span></div>
+                <div class="faq-answer">Sí, usa nuestro configurador "Arma tu PC" para elegir componentes compatibles.</div>
+            </div>
         </div>
     </div>
 </main>
@@ -54,11 +98,25 @@
     </div>
 </div>
 
+<div class="toast-container" id="toastContainer"></div>
+
 <script>
+    function mostrarToast(mensaje, tipo = 'info') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${tipo}`;
+        toast.textContent = mensaje;
+        container.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     if (currentUser) document.getElementById('userNameDisplay').textContent = currentUser.name;
 
-    // Acordeón
     document.querySelectorAll('.faq-question').forEach(q => {
         q.addEventListener('click', () => {
             const answer = q.nextElementSibling;
