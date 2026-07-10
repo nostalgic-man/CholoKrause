@@ -4,6 +4,41 @@
     <meta charset="UTF-8">
     <title>Cholo Krause: Electronic arts. - Lista de productos</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            min-width: 200px;
+            max-width: 350px;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.success { background-color: #28a745; }
+        .toast.error { background-color: #dc3545; }
+        .toast.info { background-color: #17a2b8; }
+        .filter-section { margin-bottom: 20px; }
+        .filter-section h4 { margin-bottom: 8px; }
+        .filter-option { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+        .active-cat { font-weight: bold; color: #007bff; }
+        .category-list { list-style: none; padding: 0; }
+        .category-list li { margin-bottom: 6px; }
+        .category-list a { text-decoration: none; color: #333; }
+        .category-list a:hover { color: #007bff; }
+    </style>
 </head>
 <body>
 <header>
@@ -30,26 +65,17 @@
 <main>
     <div class="main-container">
         <div class="products-list-container">
-            <!-- SIDEBAR IZQUIERDO -->
             <aside class="filters-sidebar">
                 <h3>Filtrar productos</h3>
-                
-                <!-- Sección: Otras categorías (navegación rápida) -->
                 <div class="filter-section">
                     <h4>Otras categorías</h4>
                     <div id="categoryLinks"></div>
                 </div>
-
-                <!-- Sección: Marcas -->
                 <div class="filter-section" id="brandFilterSection">
                     <h4>Marcas</h4>
                     <div id="brandFilters"></div>
                 </div>
-
-                <!-- Sección: Filtros adicionales específicos (socket, etc.) -->
                 <div class="filter-section" id="extraFilterSection"></div>
-
-                <!-- Sección: Ordenamiento -->
                 <div class="sort-section">
                     <h4>Ordenar por precio</h4>
                     <select id="sortSelect">
@@ -59,8 +85,6 @@
                     </select>
                 </div>
             </aside>
-
-            <!-- GRILLA DE PRODUCTOS -->
             <div class="products-grid" id="productsGrid"></div>
         </div>
     </div>
@@ -80,9 +104,23 @@
     </div>
 </div>
 
+<div class="toast-container" id="toastContainer"></div>
+
 <script src="database.js"></script>
 <script>
-    // Lista de todas las subcategorías disponibles (provenientes de productosDB)
+    function mostrarToast(mensaje, tipo = 'info') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${tipo}`;
+        toast.textContent = mensaje;
+        container.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
     const todasLasCategorias = Object.keys(productosDB).filter(key => key !== 'pc_armadas');
     const nombresCategorias = {
         procesadores: "Procesadores",
@@ -103,11 +141,10 @@
     const searchParam = urlParams.get('buscar');
     if (searchParam) {
         const term = searchParam.toLowerCase();
-        productos = getAllProducts().filter(p => p.nombre.toLowerCase().includes(term));
+        productos = getAllProducts().filter(p => p.nombre.toLowerCase().includes(term) || (p.descripcion && p.descripcion.toLowerCase().includes(term)));
         subcategoria = null;
     }
 
-    // Generar enlaces de categorías en el sidebar
     function generarEnlacesCategorias() {
         const container = document.getElementById('categoryLinks');
         if (!container) return;
@@ -121,7 +158,6 @@
         container.innerHTML = html;
     }
 
-    // Función para obtener especificaciones técnicas según categoría
     function getSpecsHTML(producto, categoria) {
         if (categoria === 'procesadores') {
             return `<div class="product-specs">Socket: ${producto.socket} | Núcleos: ${producto.nucleos} | TDP: ${producto.tdp}W</div>`;
@@ -164,6 +200,7 @@
                         <div class="product-description" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${p.descripcion}</div>
                         ${getSpecsHTML(p, catActual)}
                         <div class="product-price">$${p.precio.toLocaleString()}</div>
+                        <div><small>Stock: ${p.stock || 0}</small></div>
                         <div style="display:flex; gap:8px;">
                             <button class="add-to-cart" onclick="event.stopPropagation(); agregarAlCarrito(${p.id})">Agregar al carrito</button>
                             <button class="btn-favorito" onclick="event.stopPropagation(); agregarAFavoritos(${p.id})">Favorito</button>
@@ -174,7 +211,6 @@
         }).join('');
     }
 
-    // Filtros de marca y otros específicos (se generan según productos actuales)
     function renderFilters() {
         if (!productos.length) return;
         const marcas = [...new Set(productos.map(p => p.marca))];
@@ -182,23 +218,73 @@
         brandDiv.innerHTML = marcas.map(m => `<div class="filter-option"><input type="checkbox" value="${m}" class="brand-filter"> <label>${m}</label></div>`).join('');
         
         const extraDiv = document.getElementById('extraFilterSection');
+        extraDiv.innerHTML = '';
         if (subcategoria === 'procesadores') {
             const sockets = [...new Set(productos.map(p => p.socket))];
             extraDiv.innerHTML = `<h4>Socket</h4><div id="socketFilters">${sockets.map(s => `<div class="filter-option"><input type="checkbox" value="${s}" class="socket-filter"> <label>${s}</label></div>`).join('')}</div>`;
+            extraDiv.style.display = 'block';
+        } else if (subcategoria === 'memorias_ram') {
+            const capacidades = [...new Set(productos.map(p => p.capacidad))];
+            const tipos = [...new Set(productos.map(p => p.tipo))];
+            extraDiv.innerHTML = `
+                <h4>Capacidad</h4>
+                <div id="capacidadFilters">${capacidades.map(c => `<div class="filter-option"><input type="checkbox" value="${c}" class="capacidad-filter"> <label>${c}GB</label></div>`).join('')}</div>
+                <h4>Tipo</h4>
+                <div id="tipoFilters">${tipos.map(t => `<div class="filter-option"><input type="checkbox" value="${t}" class="tipo-filter"> <label>${t}</label></div>`).join('')}</div>
+            `;
+            extraDiv.style.display = 'block';
+        } else if (subcategoria === 'almacenamiento') {
+            const tipos = [...new Set(productos.map(p => p.tipo))];
+            const capacidades = [...new Set(productos.map(p => p.capacidad))];
+            extraDiv.innerHTML = `
+                <h4>Tipo</h4>
+                <div id="tipoAlmFilters">${tipos.map(t => `<div class="filter-option"><input type="checkbox" value="${t}" class="tipo-alm-filter"> <label>${t}</label></div>`).join('')}</div>
+                <h4>Capacidad</h4>
+                <div id="capacidadAlmFilters">${capacidades.map(c => `<div class="filter-option"><input type="checkbox" value="${c}" class="capacidad-alm-filter"> <label>${c}GB</label></div>`).join('')}</div>
+            `;
+            extraDiv.style.display = 'block';
+        } else if (subcategoria === 'motherboards') {
+            const sockets = [...new Set(productos.map(p => p.socket))];
+            const chipsets = [...new Set(productos.map(p => p.chipset))];
+            extraDiv.innerHTML = `
+                <h4>Socket</h4>
+                <div id="socketMBFilters">${sockets.map(s => `<div class="filter-option"><input type="checkbox" value="${s}" class="socket-mb-filter"> <label>${s}</label></div>`).join('')}</div>
+                <h4>Chipset</h4>
+                <div id="chipsetFilters">${chipsets.map(c => `<div class="filter-option"><input type="checkbox" value="${c}" class="chipset-filter"> <label>${c}</label></div>`).join('')}</div>
+            `;
             extraDiv.style.display = 'block';
         } else {
             extraDiv.style.display = 'none';
         }
         document.querySelectorAll('.brand-filter').forEach(cb => cb.addEventListener('change', applyFilters));
-        document.querySelectorAll('.socket-filter').forEach(cb => cb.addEventListener('change', applyFilters));
+        document.querySelectorAll('.socket-filter, .capacidad-filter, .tipo-filter, .tipo-alm-filter, .capacidad-alm-filter, .socket-mb-filter, .chipset-filter').forEach(cb => cb.addEventListener('change', applyFilters));
     }
 
     function applyFilters() {
         const selectedBrands = Array.from(document.querySelectorAll('.brand-filter:checked')).map(cb => cb.value);
-        const selectedSockets = Array.from(document.querySelectorAll('.socket-filter:checked')).map(cb => cb.value);
         let filtered = productos;
         if (selectedBrands.length) filtered = filtered.filter(p => selectedBrands.includes(p.marca));
-        if (selectedSockets.length && subcategoria === 'procesadores') filtered = filtered.filter(p => selectedSockets.includes(p.socket));
+
+        if (subcategoria === 'procesadores') {
+            const sockets = Array.from(document.querySelectorAll('.socket-filter:checked')).map(cb => cb.value);
+            if (sockets.length) filtered = filtered.filter(p => sockets.includes(p.socket));
+        } else if (subcategoria === 'memorias_ram') {
+            const capacidades = Array.from(document.querySelectorAll('.capacidad-filter:checked')).map(cb => parseInt(cb.value));
+            const tipos = Array.from(document.querySelectorAll('.tipo-filter:checked')).map(cb => cb.value);
+            if (capacidades.length) filtered = filtered.filter(p => capacidades.includes(p.capacidad));
+            if (tipos.length) filtered = filtered.filter(p => tipos.includes(p.tipo));
+        } else if (subcategoria === 'almacenamiento') {
+            const tipos = Array.from(document.querySelectorAll('.tipo-alm-filter:checked')).map(cb => cb.value);
+            const capacidades = Array.from(document.querySelectorAll('.capacidad-alm-filter:checked')).map(cb => parseInt(cb.value));
+            if (tipos.length) filtered = filtered.filter(p => tipos.includes(p.tipo));
+            if (capacidades.length) filtered = filtered.filter(p => capacidades.includes(p.capacidad));
+        } else if (subcategoria === 'motherboards') {
+            const sockets = Array.from(document.querySelectorAll('.socket-mb-filter:checked')).map(cb => cb.value);
+            const chipsets = Array.from(document.querySelectorAll('.chipset-filter:checked')).map(cb => cb.value);
+            if (sockets.length) filtered = filtered.filter(p => sockets.includes(p.socket));
+            if (chipsets.length) filtered = filtered.filter(p => chipsets.includes(p.chipset));
+        }
+
         const sortValue = document.getElementById('sortSelect').value;
         if (sortValue === 'asc') filtered.sort((a,b) => a.precio - b.precio);
         if (sortValue === 'desc') filtered.sort((a,b) => b.precio - a.precio);
@@ -213,6 +299,7 @@
                             <div class="product-description" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${p.descripcion}</div>
                             ${getSpecsHTML(p, catActual)}
                             <div class="product-price">$${p.precio.toLocaleString()}</div>
+                            <div><small>Stock: ${p.stock || 0}</small></div>
                             <div style="display:flex; gap:8px;"><button class="add-to-cart" onclick="event.stopPropagation(); agregarAlCarrito(${p.id})">Agregar</button><button class="btn-favorito" onclick="event.stopPropagation(); agregarAFavoritos(${p.id})">Favorito</button></div>
                         </div>
                     </div>`).join('');
@@ -221,12 +308,23 @@
     window.agregarAlCarrito = (id) => {
         const prod = getProductById(id);
         if (prod) {
+            if (prod.stock <= 0) {
+                mostrarToast('Producto sin stock', 'error');
+                return;
+            }
             let cart = JSON.parse(localStorage.getItem('carrito')) || [];
             const exist = cart.find(i => i.id === id);
-            if (exist) exist.cantidad = (exist.cantidad || 1) + 1;
-            else cart.push({ ...prod, cantidad: 1 });
+            if (exist) {
+                if (exist.cantidad >= prod.stock) {
+                    mostrarToast('No hay más stock disponible', 'error');
+                    return;
+                }
+                exist.cantidad += 1;
+            } else {
+                cart.push({ ...prod, cantidad: 1 });
+            }
             localStorage.setItem('carrito', JSON.stringify(cart));
-            alert(`${prod.nombre} agregado al carrito`);
+            mostrarToast(`${prod.nombre} agregado al carrito`, 'success');
         }
     };
     window.agregarAFavoritos = (id) => {
@@ -236,8 +334,8 @@
             if (!fav.find(f => f.id === id)) {
                 fav.push(prod);
                 localStorage.setItem('favoritos', JSON.stringify(fav));
-                alert(`${prod.nombre} agregado a favoritos`);
-            } else alert('Ya está en favoritos');
+                mostrarToast(`${prod.nombre} agregado a favoritos`, 'success');
+            } else mostrarToast('Ya está en favoritos', 'info');
         }
     };
 
@@ -246,13 +344,12 @@
         const term = e.target.value.toLowerCase();
         if (subcategoria) productos = productosDB[subcategoria] || [];
         else productos = getAllProducts();
-        productos = productos.filter(p => p.nombre.toLowerCase().includes(term));
+        productos = productos.filter(p => p.nombre.toLowerCase().includes(term) || (p.descripcion && p.descripcion.toLowerCase().includes(term)));
         renderFilters();
         applyFilters();
         renderProductos();
     });
 
-    // Inicializar todo
     generarEnlacesCategorias();
     renderFilters();
     renderProductos();
