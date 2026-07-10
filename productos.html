@@ -4,6 +4,33 @@
     <meta charset="UTF-8">
     <title>Cholo Krause: Electronic arts. - Productos</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            min-width: 200px;
+            max-width: 350px;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.success { background-color: #28a745; }
+        .toast.error { background-color: #dc3545; }
+        .toast.info { background-color: #17a2b8; }
+    </style>
 </head>
 <body class="catalogo-fondo">
 <header>
@@ -41,7 +68,6 @@
             <button class="category-btn" data-category="perifericos">Periféricos</button>
         </div>
 
-        <!-- Panel Hardware -->
         <div id="panel-hardware" class="subcategories-panel">
             <div class="panel-header"><h2>Hardware</h2><button class="close-panel" data-panel="hardware">✕</button></div>
             <div class="panel-content">
@@ -58,7 +84,6 @@
             </div>
         </div>
 
-        <!-- Panel Placas de Video -->
         <div id="panel-placasvideo" class="subcategories-panel">
             <div class="panel-header"><h2>Placas de Video</h2><button class="close-panel" data-panel="placasvideo">✕</button></div>
             <div class="panel-content">
@@ -68,7 +93,6 @@
             </div>
         </div>
 
-        <!-- Panel Coolers -->
         <div id="panel-coolers" class="subcategories-panel">
             <div class="panel-header"><h2>Coolers</h2><button class="close-panel" data-panel="coolers">✕</button></div>
             <div class="panel-content">
@@ -78,7 +102,6 @@
             </div>
         </div>
 
-        <!-- Panel Gabinetes -->
         <div id="panel-gabinetes" class="subcategories-panel">
             <div class="panel-header"><h2>Gabinetes</h2><button class="close-panel" data-panel="gabinetes">✕</button></div>
             <div class="panel-content">
@@ -88,7 +111,6 @@
             </div>
         </div>
 
-        <!-- Panel Monitores -->
         <div id="panel-monitores" class="subcategories-panel">
             <div class="panel-header"><h2>Monitores</h2><button class="close-panel" data-panel="monitores">✕</button></div>
             <div class="panel-content">
@@ -98,7 +120,6 @@
             </div>
         </div>
 
-        <!-- Panel Periféricos -->
         <div id="panel-perifericos" class="subcategories-panel">
             <div class="panel-header"><h2>Periféricos</h2><button class="close-panel" data-panel="perifericos">✕</button></div>
             <div class="panel-content">
@@ -124,13 +145,27 @@
     </div>
 </div>
 
+<div class="toast-container" id="toastContainer"></div>
+
 <script src="database.js"></script>
 <script>
+    function mostrarToast(mensaje, tipo = 'info') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${tipo}`;
+        toast.textContent = mensaje;
+        container.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     const userNameSpan = document.getElementById('userNameDisplay');
     if (currentUser) userNameSpan.textContent = currentUser.name;
 
-    // Lógica de paneles
     const categoryBtns = document.querySelectorAll('.category-btn');
     const panels = document.querySelectorAll('.subcategories-panel');
     const closeBtns = document.querySelectorAll('.close-panel');
@@ -155,7 +190,6 @@
         }
     });
 
-    // Redirigir a lista de productos
     document.querySelectorAll('.subcategory-item').forEach(item => {
         item.addEventListener('click', () => {
             const sub = item.getAttribute('data-subcategory');
@@ -163,12 +197,10 @@
         });
     });
 
-    // Búsqueda global
     document.getElementById('globalSearch').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') window.location.href = `productos-lista.html?buscar=${encodeURIComponent(e.target.value)}`;
     });
 
-    // Botón flotante
     const floatingButton = document.querySelector('.floating-button');
     const floatingMenu = document.querySelector('.floating-menu');
     if (floatingButton && floatingMenu) {
