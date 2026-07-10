@@ -4,6 +4,43 @@
     <meta charset="UTF-8">
     <title>Cholo Krause: Electronic arts. - Arma tu PC</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Estilos adicionales para notificaciones y mejoras */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            min-width: 200px;
+            max-width: 350px;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .toast.success { background-color: #28a745; }
+        .toast.error { background-color: #dc3545; }
+        .toast.info { background-color: #17a2b8; }
+        .componente-header { cursor: pointer; }
+        .btn-reset, .btn-saltar { background: #6c757d; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+        .btn-reset:hover, .btn-saltar:hover { background: #5a6268; }
+        .btn-configurar { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+        .btn-configurar:hover { background: #0069d9; }
+        .opcion-card.seleccionada { border: 2px solid #007bff; background: #e7f3ff; }
+    </style>
 </head>
 <body>
 <header>
@@ -70,8 +107,25 @@
     </div>
 </div>
 
+<!-- Contenedor de notificaciones Toast -->
+<div class="toast-container" id="toastContainer"></div>
+
 <script src="database.js"></script>
 <script>
+    // --- Funciones de notificación Toast ---
+    function mostrarToast(mensaje, tipo = 'info') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${tipo}`;
+        toast.textContent = mensaje;
+        container.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
     // Mapeo de categorías UI a base de datos
     const categoriasUI = [
         "microprocesador", "mother", "placas_video", "coolers", "gabinetes", "monitores", "perifericos", "fuentes_poder"
@@ -173,6 +227,7 @@
             opcionesHTML += `<div class="opcion-card ${isSelected ? 'seleccionada' : ''}" onclick="seleccionar('${catKey}', ${op.id})">
                                 <strong>${op.nombre}</strong><br>
                                 <small>$${op.precio.toLocaleString()}</small>
+                                ${op.stock !== undefined ? `<br><small style="color:${op.stock > 0 ? 'green' : 'red'};">${op.stock > 0 ? `Stock: ${op.stock}` : 'Sin stock'}</small>` : ''}
                             </div>`;
         });
         return `
@@ -202,6 +257,7 @@
             opcionesHTML += `<div class="opcion-card ${isSelected ? 'seleccionada' : ''}" onclick="seleccionarRAM(${ram.id})">
                                 <strong>${ram.nombre}</strong><br>
                                 <small>$${ram.precio.toLocaleString()} c/u</small>
+                                <br><small style="color:${ram.stock > 0 ? 'green' : 'red'};">${ram.stock > 0 ? `Stock: ${ram.stock}` : 'Sin stock'}</small>
                             </div>`;
         });
         if (opcionesRAM.length === 0) {
@@ -244,6 +300,10 @@
         const dbCat = dbMap[catKey];
         const producto = productosDB[dbCat]?.find(p => p.id === id);
         if (producto) {
+            if (producto.stock <= 0) {
+                mostrarToast('Producto sin stock disponible', 'error');
+                return;
+            }
             selecciones[catKey] = producto;
             if (catKey === "mother") {
                 if (seleccionRAM.producto) {
@@ -253,6 +313,7 @@
             }
             renderizarComponentes();
             actualizarResumen();
+            mostrarToast(`${producto.nombre} seleccionado`, 'success');
         }
     };
 
@@ -263,17 +324,23 @@
         }
         renderizarComponentes();
         actualizarResumen();
+        mostrarToast('Componente omitido', 'info');
     };
 
     window.seleccionarRAM = function(id) {
         const opcionesCompatibles = getOpcionesRAMCompatibles();
         const producto = opcionesCompatibles.find(p => p.id === id);
         if (producto) {
+            if (producto.stock <= 0) {
+                mostrarToast('Producto sin stock disponible', 'error');
+                return;
+            }
             seleccionRAM.producto = producto;
             renderizarComponentes();
             actualizarResumen();
+            mostrarToast(`${producto.nombre} seleccionado`, 'success');
         } else {
-            alert("Esta memoria no es compatible con la motherboard seleccionada.");
+            mostrarToast('Esta memoria no es compatible con la motherboard seleccionada.', 'error');
         }
     };
 
@@ -281,6 +348,7 @@
         seleccionRAM.producto = null;
         renderizarComponentes();
         actualizarResumen();
+        mostrarToast('RAM omitida', 'info');
     };
 
     window.cambiarCantidadRAM = function(val) {
@@ -289,17 +357,14 @@
         actualizarResumen();
     };
 
-    // Función para eliminar un ítem del resumen (categoría o RAM)
     window.eliminarItemResumen = function(tipo, id) {
         if (tipo === 'categoria') {
-            // Buscar la clave de categoría por el ID del producto (simple: recorremos selecciones)
             for (let cat of categoriasUI) {
                 if (selecciones[cat] && selecciones[cat].id === id) {
                     selecciones[cat] = null;
                     break;
                 }
             }
-            // Si la categoría eliminada es motherboard, también limpiar RAM
             for (let cat of categoriasUI) {
                 if (selecciones[cat] && selecciones[cat].id === id && cat === 'mother') {
                     seleccionRAM.producto = null;
@@ -311,6 +376,7 @@
         }
         renderizarComponentes();
         actualizarResumen();
+        mostrarToast('Elemento eliminado', 'info');
     };
 
     function calcularTotal() {
@@ -325,7 +391,6 @@
     function actualizarResumen() {
         const resumenDiv = document.getElementById('resumenLista');
         let html = '';
-        // Mostrar cada componente seleccionado (categorías)
         for (let cat of categoriasUI) {
             if (selecciones[cat]) {
                 const item = selecciones[cat];
@@ -338,7 +403,6 @@
                 `;
             }
         }
-        // Mostrar RAM si está seleccionada
         if (seleccionRAM.producto) {
             const ram = seleccionRAM.producto;
             const subtotal = ram.precio * seleccionRAM.cantidad;
@@ -361,15 +425,16 @@
         initSelecciones();
         renderizarComponentes();
         actualizarResumen();
+        mostrarToast('Configuración reiniciada', 'info');
     }
 
     function configurarPC() {
         if (!selecciones.microprocesador && !selecciones.mother) {
-            alert("Debes seleccionar al menos un componente principal.");
+            mostrarToast('Debes seleccionar al menos un componente principal.', 'error');
             return;
         }
         const total = calcularTotal();
-        alert(`PC configurada con éxito. Total: $${total.toLocaleString()}. Guardada en tu perfil.`);
+        mostrarToast(`PC configurada con éxito. Total: $${total.toLocaleString()}. Guardada en tu perfil.`, 'success');
         const configs = JSON.parse(localStorage.getItem('configuraciones')) || [];
         configs.push({ id: Date.now(), fecha: new Date(), selecciones: JSON.parse(JSON.stringify(selecciones)), total });
         localStorage.setItem('configuraciones', JSON.stringify(configs));
